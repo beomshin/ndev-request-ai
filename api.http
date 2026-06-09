@@ -1,0 +1,21 @@
+### 테스트케이스 생성 - 한글 요청
+POST http://localhost:8080/api/testcases/generate
+Content-Type: application/json; charset=utf-8
+
+{
+  "paymentMethod": "신용카드",
+  "provider": "나이스페이먼츠",
+  "requirements": "ISP 인증, 일시불/할부 지원"
+}
+
+>>! testcases.xlsx
+
+### 검증 실패 케이스 (빈 값 → 400)
+POST http://localhost:8080/api/testcases/generate
+Content-Type: application/json
+
+{
+  "paymentMethod": "",
+  "provider": "NICE",
+  "requirements": "test"
+}

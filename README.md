@@ -4,7 +4,8 @@
 
 요청자 입력 + 사내 지식저장소(KB) 컨텍스트를 기반으로 LLM이 개발요청서와 설계 흐름도를 생성, **`requirements.md` + `flow.png`를 zip으로 다운로드**해 준다.
 
-현재는 실제 LLM/KB 없이 **Stub로 end-to-end 동작**하는 상태. 사내 LLM·KB 연동, 프론트엔드 React 화면, 대시보드/지식저장소 화면, KB 적재, F12/F14 등은 **범위 밖**.
+현재는 실제 LLM/KB 없이 **Stub로 end-to-end 동작**하는 상태. 
+사내 LLM·KB 연동, 프론트엔드 React 화면, 대시보드/지식저장소 화면, KB 적재, F12/F14 등은 **추후 개발/보강 필요**.
 
 > ⚠️ **요청 포맷, 카테고리 시드, 산출 MD 구조는 모두 Phase 0 초안**이며 실 요구사항·KB 데이터 확정 시 변경 예정.
 
@@ -163,7 +164,6 @@ file out/flow.png    # "PNG image data" 떠야 OK
 ```
 
 ## 추후 보강 가능 사항
-
 - `LlmClient` 실어댑터 — `TestController`에서 PoC된 google-genai(Gemini) SDK를 `GeminiLlmClient` 형태로 승격(`provider=external`). 동시에 `TestController`의 하드코딩된 API key는 `${GEMINI_API_KEY}` 환경변수로 분리 필요.
 - `KnowledgeClient` 실어댑터 — 사내 KB(`internal` provider) 붙이면서 docs/는 시드/오프라인 모드로 전환. 분기 트리·RAG·규격·유사요청 실데이터로 교체.
 - `ExternalSyncPort` SHARE/Plane/Confluence 어댑터 (F13)

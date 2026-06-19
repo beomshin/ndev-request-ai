@@ -5,13 +5,21 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-// 분기 트리 시드 + 더미 청크/규격/유사요청/현황 반환.
-// 실제 KB 연동 전까지의 자리채움 — 실제 데이터·임베딩·검색은 KB 담당이 채움.
+// 분기 트리 시드 + classpath:docs/ 기반 mock 데이터 반환.
+// 실제 KB 어댑터가 들어오기 전까지의 자리채움.
 @Component
 @ConditionalOnProperty(name = "knowledge.provider", havingValue = "stub", matchIfMissing = true)
 public class StubKnowledgeClient implements KnowledgeClient {
 
-    // 프롬프트에 명시된 분기 트리 시드
+    private static final int CHUNK_LIMIT = 5;
+    private static final int CONTENT_MAX_CHARS = 800;
+
+    private final DocRepository docs;
+
+    public StubKnowledgeClient(DocRepository docs) {
+        this.docs = docs;
+    }
+
     @Override
     public CategoryTree getCategoryTree() {
         List<CategoryTree.FuncType> funcTypes = List.of(
@@ -39,7 +47,6 @@ public class StubKnowledgeClient implements KnowledgeClient {
                         new CategoryTree.SubType("linepay", "라인페이"),
                         new CategoryTree.SubType("etc", "기타")
                 )),
-                // 기타서비스는 세부유형 없음
                 new CategoryTree.CategoryNode("etc", "기타서비스", List.of())
         );
 
@@ -48,40 +55,73 @@ public class StubKnowledgeClient implements KnowledgeClient {
 
     @Override
     public List<KnowledgeChunk> search(String query, KbFilter filter) {
-        // 일반 placeholder 청크 — 실제 임베딩/RAG 결과는 KB 담당이 채움
-        return List.of(
-                new KnowledgeChunk("chunk-1", "샘플 KB 청크 #1",
-                        "(KB 검색 결과 placeholder) 카테고리=" + filter.category() + ", 세부유형=" + filter.subType(),
-                        "stub://kb/chunk-1", 0.92),
-                new KnowledgeChunk("chunk-2", "샘플 KB 청크 #2",
-                        "(KB 검색 결과 placeholder)",
-                        "stub://kb/chunk-2", 0.81)
-        );
+        // 쿼리 + 카테고리/세부유형을 키워드로 합쳐 docs/* 전체에서 검색
+        List<String> keywords = DocRepository.tokenize(query, filter.category(), filter.subType());
+        return docs.search(keywords, null, CHUNK_LIMIT).stream()
+                .map(this::toChunk)
+                .toList();
     }
 
     @Override
     public List<SpecDocRef> matchSpecDocs(String category, String subType) {
-        // 더미 규격서 — 실제 매칭은 KB 담당
-        return List.of(
-                new SpecDocRef("spec-1",
-                        "[" + category + "/" + subType + "] 규격서 (샘플)",
-                        "stub://kb/spec-1", "v0")
-        );
+        // 규격서 매칭: docs/spec/* 와 docs/provider/* 중 카테고리/세부유형 키워드 매칭 상위 N개
+        List<String> keywords = DocRepository.tokenize(category, subType);
+
+        List<DocRepository.KnowledgeDoc> specHits = docs.search(keywords, "spec", 3);
+        List<DocRepository.KnowledgeDoc> providerHits = docs.search(keywords, "provider", 3);
+
+        // 매칭 결과가 비면 폴더 전체를 기본 후보로 반환 — 사용자에게 "관련 자료 풀"을 보여주는 효과
+        if (specHits.isEmpty() && providerHits.isEmpty()) {
+            specHits = docs.byFolder("spec");
+            providerHits = docs.byFolder("provider");
+        }
+
+        return java.util.stream.Stream.concat(specHits.stream(), providerHits.stream())
+                .map(this::toSpecRef)
+                .toList();
     }
 
     @Override
     public List<PastRequestRef> findSimilarRequests(SimilarQuery query) {
-        // 현 단계엔 적재된 과거 요청서가 없을 수 있으므로 빈 결과 graceful 처리 + 샘플 1건
-        return List.of(
-                new PastRequestRef("past-1",
-                        "유사 과거 요청 (샘플)",
-                        "(KB에 데이터가 들어오면 실제 유사도 기반 결과로 대체됩니다)",
-                        0.75, "2026-01-01")
-        );
+        // 현 단계엔 KB에 적재된 과거 요청 데이터가 없어 비어있는 게 정상.
+        // 다만 흐름 검증용으로 templates 폴더의 양식 1건을 "유사 사례"로 보여준다.
+        return docs.byFolder("templates").stream()
+                .limit(1)
+                .map(d -> new PastRequestRef(
+                        d.id(),
+                        d.title(),
+                        DocRepository.excerpt(d.body(), 200),
+                        0.0,
+                        d.meta().getOrDefault("last_updated", "")
+                ))
+                .toList();
     }
 
     @Override
     public KbStatus getStatus() {
-        return new KbStatus(0L, 0L, "stub");
+        return new KbStatus(docs.size(), docs.size(), nullSafe(docs.latestUpdate()));
+    }
+
+    private KnowledgeChunk toChunk(DocRepository.KnowledgeDoc d) {
+        return new KnowledgeChunk(
+                d.id(),
+                d.title(),
+                DocRepository.excerpt(d.body(), CONTENT_MAX_CHARS),
+                d.path(),
+                0.0 // Phase 0 stub에서는 점수 의미 없음 — 정렬은 DocRepository 내부에서 끝남
+        );
+    }
+
+    private SpecDocRef toSpecRef(DocRepository.KnowledgeDoc d) {
+        return new SpecDocRef(
+                d.id(),
+                d.title(),
+                d.meta().getOrDefault("reference_url", d.path()),
+                d.meta().getOrDefault("version", "")
+        );
+    }
+
+    private String nullSafe(String s) {
+        return s == null ? "" : s;
     }
 }

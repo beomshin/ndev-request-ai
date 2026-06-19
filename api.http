@@ -1,21 +1,36 @@
-### 테스트케이스 생성 - 한글 요청
-POST http://localhost:8080/api/testcases/generate
+### 분기 트리(카탈로그) 조회 — FE 위저드용
+GET http://localhost:8090/api/catalog
+
+### 개발요청서 zip 생성 (Phase 0 stub 흐름)
+POST http://localhost:8090/api/dev-requests/generate
 Content-Type: application/json; charset=utf-8
 
 {
-  "paymentMethod": "신용카드",
-  "provider": "나이스페이먼츠",
-  "requirements": "ISP 인증, 일시불/할부 지원"
+  "funcType": "신규 서비스 개발",
+  "category": "pg표준결제창",
+  "subType": "카드",
+  "author": "홍길동",
+  "department": "결제개발팀",
+  "serviceName": "신규 카드결제 모듈",
+  "background": "기존 결제창 사용성 개선 및 신규 카드 지원",
+  "targetSchedule": "2026-08-31",
+  "problemAndImprovement": "현재 카드 결제창에서 일부 카드사 할부 옵션이 미노출. 카드사별 옵션 동적 노출 필요."
 }
 
->>! testcases.xlsx
+>>! devrequest.zip
 
-### 검증 실패 케이스 (빈 값 → 400)
-POST http://localhost:8080/api/testcases/generate
+### 검증 실패 케이스
+POST http://localhost:8090/api/dev-requests/generate
 Content-Type: application/json
 
 {
-  "paymentMethod": "",
-  "provider": "NICE",
-  "requirements": "test"
+  "funcType": "",
+  "category": "API",
+  "subType": "빌링",
+  "author": "x",
+  "department": "x",
+  "serviceName": "x",
+  "background": "x",
+  "targetSchedule": "x",
+  "problemAndImprovement": "x"
 }

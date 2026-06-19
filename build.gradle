@@ -20,7 +20,8 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'org.apache.poi:poi-ooxml:5.4.0'
+    // PlantUML 소스를 PNG로 렌더링 (FlowImageRenderer in-process 사용)
+    implementation 'net.sourceforge.plantuml:plantuml:1.2024.7'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

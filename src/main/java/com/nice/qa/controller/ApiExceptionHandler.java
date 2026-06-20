@@ -1,5 +1,6 @@
 package com.nice.qa.controller;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -9,7 +10,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-// 검증 에러를 JSON으로 반환. xlsx 응답과 섞이지 않도록 별도 핸들러.
+
+/**
+ * 검증 에러를 JSON으로 반환. xlsx 응답과 섞이지 않도록 별도 핸들러.
+ */
+@Slf4j
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
@@ -25,4 +30,13 @@ public class ApiExceptionHandler {
         body.put("fieldErrors", fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(Exception e) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", 500);
+        body.put("error", "INTERNAL_SERVER_ERROR");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    }
+
 }

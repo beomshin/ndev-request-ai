@@ -1,33 +1,36 @@
 package com.nice.qa.service;
 
-import com.nice.qa.dto.DevRequestRequest;
-import com.nice.qa.service.knowledge.KbFilter;
-import com.nice.qa.service.knowledge.KnowledgeChunk;
+import com.nice.qa.model.api.dto.DevRequestRequest;
+import com.nice.qa.service.knowledge.dto.KbFilter;
+import com.nice.qa.service.knowledge.dto.KnowledgeChunk;
 import com.nice.qa.service.knowledge.KnowledgeClient;
-import com.nice.qa.service.knowledge.SpecDocRef;
+import com.nice.qa.service.knowledge.dto.SpecDocRef;
 import com.nice.qa.service.llm.LlmClient;
-import com.nice.qa.service.llm.PreCheckCommand;
-import com.nice.qa.service.llm.PreCheckResult;
-import com.nice.qa.service.llm.RequestDocCommand;
-import com.nice.qa.service.llm.RequestDocResult;
+import com.nice.qa.service.llm.dto.PreCheckCommand;
+import com.nice.qa.service.llm.dto.PreCheckResult;
+import com.nice.qa.service.llm.dto.RequestDocCommand;
+import com.nice.qa.service.llm.dto.RequestDocResult;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-// 공통 포맷 요청서 + 추가확인 + 사전검토 + 규격서 매칭을 묶어 종합 MD를 만든다.
-// 설계 flow는 마지막에 이미지 링크(flow.png)만 끼워두고 실제 PNG는 DesignFlowService가 채운다.
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class RequestDocService {
 
     private final LlmClient llmClient;
     private final KnowledgeClient knowledgeClient;
 
-    public RequestDocService(LlmClient llmClient, KnowledgeClient knowledgeClient) {
-        this.llmClient = llmClient;
-        this.knowledgeClient = knowledgeClient;
-    }
-
+    /**
+     * 공통 포맷 요청서 + 추가확인 + 사전검토 + 규격서 매칭을 묶어 종합 MD를 만든다.
+     * 설계 flow는 마지막에 이미지 링크(flow.png)만 끼워두고 실제 PNG는 DesignFlowService가 채운다.
+     * @param req
+     * @return
+     */
     public String assembleMarkdown(DevRequestRequest req) {
         // 1. KB 컨텍스트 수집
         List<SpecDocRef> specDocs = knowledgeClient.matchSpecDocs(req.category(), req.subType());

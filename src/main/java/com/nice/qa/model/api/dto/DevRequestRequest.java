@@ -1,9 +1,21 @@
-package com.nice.qa.dto;
+package com.nice.qa.model.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
-// 개발요청서 생성 요청. 공통 포맷 핵심 필드 + 위저드 분기 키.
-// 전체 필드는 design.md §5 DevRequest에 있고, Phase 0은 핵심만 받는다.
+
+/**
+ * 개발요청서 생성 요청. 공통 포맷 핵심 필드 + 위저드 분기 키.
+ * 전체 필드는 design.md §5 DevRequest에 있고, Phase 0은 핵심만 받는다.
+ * @param funcType
+ * @param category
+ * @param subType
+ * @param author
+ * @param department
+ * @param serviceName
+ * @param background
+ * @param targetSchedule
+ * @param problemAndImprovement
+ */
 public record DevRequestRequest(
         // 위저드 분기
         @NotBlank String funcType,         // "기존 서비스 수정·개선" / "신규 서비스 개발"

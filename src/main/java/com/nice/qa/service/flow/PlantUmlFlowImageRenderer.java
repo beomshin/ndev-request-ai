@@ -1,5 +1,6 @@
 package com.nice.qa.service.flow;
 
+import lombok.extern.slf4j.Slf4j;
 import net.sourceforge.plantuml.FileFormat;
 import net.sourceforge.plantuml.FileFormatOption;
 import net.sourceforge.plantuml.SourceStringReader;
@@ -7,7 +8,10 @@ import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 
-// PlantUML 소스를 in-process로 PNG로 렌더링. Graphviz 없이도 activity 문법은 동작.
+/**
+ * PlantUML 소스를 in-process로 PNG로 렌더링. Graphviz 없이도 activity 문법은 동작.
+ */
+@Slf4j
 @Component
 public class PlantUmlFlowImageRenderer implements FlowImageRenderer {
 
@@ -22,4 +26,5 @@ public class PlantUmlFlowImageRenderer implements FlowImageRenderer {
             throw new RuntimeException("PlantUML 렌더 실패", e);
         }
     }
+
 }

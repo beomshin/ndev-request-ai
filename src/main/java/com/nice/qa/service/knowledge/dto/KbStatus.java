@@ -1,4 +1,4 @@
-package com.nice.qa.service.knowledge;
+package com.nice.qa.service.knowledge.dto;
 
 // KB 학습/적재 현황. 대시보드 노출용 — 우리는 read-only.
 public record KbStatus(

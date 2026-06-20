@@ -1,9 +1,13 @@
 package com.nice.qa.service.knowledge;
 
+import com.nice.qa.service.knowledge.dto.*;
+
 import java.util.List;
 
-// KB(지식저장소) 격리. 데이터는 타 담당이 채우고 우리는 조회만.
-// 반환·입력 스키마는 우리가 정의(이 패키지). Phase 0은 StubKnowledgeClient.
+/**
+ * KB(지식저장소) 격리. 데이터는 타 담당이 채우고 우리는 조회만.
+ * 반환·입력 스키마는 우리가 정의(이 패키지). Phase 0은 StubKnowledgeClient.
+ */
 public interface KnowledgeClient {
 
     // 동적폼 분기 트리 — KB 보유, 상시 수정 가능. 스키마는 §10-2에 따라 우리가 정의.

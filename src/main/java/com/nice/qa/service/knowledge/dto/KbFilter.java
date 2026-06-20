@@ -1,4 +1,4 @@
-package com.nice.qa.service.knowledge;
+package com.nice.qa.service.knowledge.dto;
 
 // KB 검색 필터. 카테고리/세부유형이 null이면 미적용.
 public record KbFilter(

@@ -1,4 +1,4 @@
-package com.nice.qa.service.llm;
+package com.nice.qa.service.llm.dto;
 
 import java.util.List;
 

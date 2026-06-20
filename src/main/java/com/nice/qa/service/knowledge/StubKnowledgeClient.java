@@ -1,24 +1,27 @@
 package com.nice.qa.service.knowledge;
 
+import com.nice.qa.service.knowledge.dto.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-// 분기 트리 시드 + classpath:docs/ 기반 mock 데이터 반환.
-// 실제 KB 어댑터가 들어오기 전까지의 자리채움.
+/**
+ * 분기 트리 시드 + classpath:docs/ 기반 mock 데이터 반환.
+ * 실제 KB 어댑터가 들어오기 전까지의 자리채움.
+ */
+@Slf4j
 @Component
 @ConditionalOnProperty(name = "knowledge.provider", havingValue = "stub", matchIfMissing = true)
+@RequiredArgsConstructor
 public class StubKnowledgeClient implements KnowledgeClient {
 
     private static final int CHUNK_LIMIT = 5;
     private static final int CONTENT_MAX_CHARS = 800;
 
-    private final DocRepository docs;
-
-    public StubKnowledgeClient(DocRepository docs) {
-        this.docs = docs;
-    }
+    private final DocRepository docRepository;
 
     @Override
     public CategoryTree getCategoryTree() {
@@ -57,7 +60,7 @@ public class StubKnowledgeClient implements KnowledgeClient {
     public List<KnowledgeChunk> search(String query, KbFilter filter) {
         // 쿼리 + 카테고리/세부유형을 키워드로 합쳐 docs/* 전체에서 검색
         List<String> keywords = DocRepository.tokenize(query, filter.category(), filter.subType());
-        return docs.search(keywords, null, CHUNK_LIMIT).stream()
+        return docRepository.search(keywords, null, CHUNK_LIMIT).stream()
                 .map(this::toChunk)
                 .toList();
     }
@@ -67,13 +70,13 @@ public class StubKnowledgeClient implements KnowledgeClient {
         // 규격서 매칭: docs/spec/* 와 docs/provider/* 중 카테고리/세부유형 키워드 매칭 상위 N개
         List<String> keywords = DocRepository.tokenize(category, subType);
 
-        List<DocRepository.KnowledgeDoc> specHits = docs.search(keywords, "spec", 3);
-        List<DocRepository.KnowledgeDoc> providerHits = docs.search(keywords, "provider", 3);
+        List<DocRepository.KnowledgeDoc> specHits = docRepository.search(keywords, "spec", 3);
+        List<DocRepository.KnowledgeDoc> providerHits = docRepository.search(keywords, "provider", 3);
 
         // 매칭 결과가 비면 폴더 전체를 기본 후보로 반환 — 사용자에게 "관련 자료 풀"을 보여주는 효과
         if (specHits.isEmpty() && providerHits.isEmpty()) {
-            specHits = docs.byFolder("spec");
-            providerHits = docs.byFolder("provider");
+            specHits = docRepository.byFolder("spec");
+            providerHits = docRepository.byFolder("provider");
         }
 
         return java.util.stream.Stream.concat(specHits.stream(), providerHits.stream())
@@ -85,7 +88,7 @@ public class StubKnowledgeClient implements KnowledgeClient {
     public List<PastRequestRef> findSimilarRequests(SimilarQuery query) {
         // 현 단계엔 KB에 적재된 과거 요청 데이터가 없어 비어있는 게 정상.
         // 다만 흐름 검증용으로 templates 폴더의 양식 1건을 "유사 사례"로 보여준다.
-        return docs.byFolder("templates").stream()
+        return docRepository.byFolder("templates").stream()
                 .limit(1)
                 .map(d -> new PastRequestRef(
                         d.id(),
@@ -99,7 +102,7 @@ public class StubKnowledgeClient implements KnowledgeClient {
 
     @Override
     public KbStatus getStatus() {
-        return new KbStatus(docs.size(), docs.size(), nullSafe(docs.latestUpdate()));
+        return new KbStatus(docRepository.size(), docRepository.size(), nullSafe(docRepository.latestUpdate()));
     }
 
     private KnowledgeChunk toChunk(DocRepository.KnowledgeDoc d) {

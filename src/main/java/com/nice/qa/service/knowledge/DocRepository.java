@@ -16,8 +16,10 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// classpath:docs/**/*.md 를 시동 시 한 번 읽어 메모리에 보관.
-// YAML 프론트매터(--- ... ---) + 본문을 분리해 KnowledgeDoc 형태로 저장.
+/**
+ * classpath:docs/~/*.md 를 시동 시 한 번 읽어 메모리에 보관.
+ * YAML 프론트매터(--- ... ---) + 본문을 분리해 KnowledgeDoc 형태로 저장.
+ */
 @Component
 public class DocRepository {
 

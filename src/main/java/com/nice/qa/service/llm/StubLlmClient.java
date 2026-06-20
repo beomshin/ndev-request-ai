@@ -1,12 +1,17 @@
 package com.nice.qa.service.llm;
 
+import com.nice.qa.service.llm.dto.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-// 실제 LLM 호출 없이 고정 mock 반환. 흐름·산출물 검증 + 프론트 개발용.
-// 실제 사내 LLM 어댑터가 들어오기 전까지의 자리채움.
+/**
+ * 실제 LLM 호출 없이 고정 mock 반환. 흐름·산출물 검증 + 프론트 개발용.
+ * 실제 사내 LLM 어댑터가 들어오기 전까지의 자리채움.
+ */
+@Slf4j
 @Component
 @ConditionalOnProperty(name = "llm.provider", havingValue = "stub", matchIfMissing = true)
 public class StubLlmClient implements LlmClient {

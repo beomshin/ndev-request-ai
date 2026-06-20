@@ -1,4 +1,4 @@
-package com.nice.qa.service.knowledge;
+package com.nice.qa.service.knowledge.dto;
 
 import java.util.List;
 

@@ -1,8 +1,8 @@
-package com.nice.qa.service.llm;
+package com.nice.qa.service.llm.dto;
 
-import com.nice.qa.dto.DevRequestRequest;
-import com.nice.qa.service.knowledge.KnowledgeChunk;
-import com.nice.qa.service.knowledge.SpecDocRef;
+import com.nice.qa.model.api.dto.DevRequestRequest;
+import com.nice.qa.service.knowledge.dto.KnowledgeChunk;
+import com.nice.qa.service.knowledge.dto.SpecDocRef;
 
 import java.util.List;
 

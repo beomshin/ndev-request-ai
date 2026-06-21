@@ -101,4 +101,9 @@ public class RequestDocService {
 
         return md.toString();
     }
+
+
+    public String assembleMarkdown2(DevRequestRequest req) {
+        return null;
+    }
 }

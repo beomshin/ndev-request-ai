@@ -1,0 +1,247 @@
+meta:
+  doc_id: request.history.v1
+  ns: request
+  type: request_history
+  title: 과거 개발 요청서 히스토리 (mockup)
+  status: ACTIVE
+  version: v1
+  updated: '2026-06-22'
+  note: findSimilarRequests/PastRequestRef용 더미 히스토리. category/sub_type은 catalog.category_tree.v1 노드와 매핑.
+    mockup 데이터 — 실제 적재 파이프라인은 설계 §10-3에 따라 보류.
+  count: 10
+requests:
+- id: REQ-2026-0007
+  title: PG 표준결제창 카드 할부 12개월 노출 요청
+  func_type: MODIFY
+  category: pg표준결제창
+  sub_type: 카드
+  payment_methods:
+  - CARD
+  dev_type:
+  - 가맹점
+  dept: 결제서비스개발팀
+  author: 김민수
+  created: '2026-05-12'
+  status: 개발착수
+  mid: nicepay00m
+  merchant: ㈜하나마트
+  background: 대형 가맹점 요청으로 카드 12개월 할부 노출 필요. 현재 결제창 10개월까지만 노출됨.
+  problem: 할부 개월 선택 UI가 10개월에서 끊김. 카드사 정책상 일부 카드 12개월 가능.
+  effect: 객단가 상승 및 가맹점 이탈 방지
+  keywords:
+  - 카드
+  - 할부
+  - 결제창
+  - 개월
+  - CARD
+- id: REQ-2026-0011
+  title: 가상계좌 입금통보 지연 개선
+  func_type: MODIFY
+  category: pg표준결제창
+  sub_type: 가상계좌
+  payment_methods:
+  - VBANK
+  dev_type:
+  - 가맹점
+  dept: 결제서비스개발팀
+  author: 이서연
+  created: '2026-05-20'
+  status: 추가확인대기
+  mid: nicepay01m
+  merchant: ㈜북스토어
+  background: 가상계좌 입금 후 통보(노티) 지연으로 주문확정 늦어짐.
+  problem: 입금통보 webhook 평균 지연 3분. 간헐적 누락 발생.
+  effect: 주문확정 리드타임 단축, CS 문의 감소
+  keywords:
+  - 가상계좌
+  - VBANK
+  - 입금통보
+  - 노티
+  - webhook
+- id: REQ-2026-0015
+  title: 빌링 정기결제 자동 재시도 로직 신규 개발
+  func_type: NEW
+  category: API
+  sub_type: 빌링
+  payment_methods:
+  - CARD
+  dev_type:
+  - 신규개선
+  dept: 플랫폼개발팀
+  author: 박지훈
+  created: '2026-05-28'
+  status: AI검증완료
+  background: 구독 서비스 빌링 실패 건 자동 재시도 기능 부재.
+  problem: 정기결제 실패 시 수동 재시도만 가능. 재시도 정책(횟수/간격) 없음.
+  effect: 구독 이탈률 감소, 운영 공수 절감
+  keywords:
+  - 빌링
+  - 정기결제
+  - 재시도
+  - 구독
+  - API
+- id: REQ-2026-0019
+  title: SMS 링크결제 단축 URL 도메인 변경
+  func_type: MODIFY
+  category: API
+  sub_type: SMS링크결제
+  payment_methods:
+  - CARD
+  - BANK
+  dev_type:
+  - 가맹점
+  dept: 플랫폼개발팀
+  author: 최유나
+  created: '2026-06-01'
+  status: 개발착수
+  mid: nicepay02m
+  merchant: ㈜뷰티샵
+  background: SMS 링크결제 단축 URL이 스팸 필터에 차단됨.
+  problem: 기존 도메인 스팸 분류율 높음. 링크 전달률 저하.
+  effect: 링크 전달률/결제전환율 개선
+  keywords:
+  - SMS
+  - 링크결제
+  - 단축URL
+  - 도메인
+  - 스팸
+- id: REQ-2026-0023
+  title: 신규 결제대행 API(approval) 엔드포인트 생성
+  func_type: NEW
+  category: API
+  sub_type: 신규API생성
+  payment_methods:
+  - CARD
+  dev_type:
+  - 신규개선
+  dept: 플랫폼개발팀
+  author: 정태경
+  created: '2026-06-03'
+  status: AI검증완료
+  background: 외부 파트너 연동용 승인 API 신규 필요.
+  problem: 기존 내부 승인 API를 외부 노출 불가. 별도 계약/스펙 필요.
+  effect: 파트너 연동 확대
+  keywords:
+  - 신규API
+  - 승인
+  - approval
+  - 엔드포인트
+  - 연동
+- id: REQ-2026-0028
+  title: 알리페이 해외결제 환율 표기 오류 수정
+  func_type: MODIFY
+  category: 해외결제
+  sub_type: 알리페이
+  payment_methods:
+  - GLOBAL
+  dev_type:
+  - 원천사
+  dept: 글로벌결제팀
+  author: 한지원
+  created: '2026-06-05'
+  status: 추가확인대기
+  mid: nicepay03m
+  merchant: ㈜트래블몰
+  source_provider: Alipay
+  background: 알리페이 결제 시 KRW/CNY 환율 표기 불일치.
+  problem: 결제창 환산금액과 실청구액 차이. 고객 클레임.
+  effect: 해외 고객 신뢰도, 클레임 감소
+  keywords:
+  - 알리페이
+  - 해외결제
+  - 환율
+  - CNY
+  - GLOBAL
+- id: REQ-2026-0032
+  title: 위챗페이 QR 결제 타임아웃 연장
+  func_type: MODIFY
+  category: 해외결제
+  sub_type: 위챗페이
+  payment_methods:
+  - GLOBAL
+  dev_type:
+  - 원천사
+  dept: 글로벌결제팀
+  author: 오세훈
+  created: '2026-06-08'
+  status: 작성중
+  mid: nicepay03m
+  merchant: ㈜트래블몰
+  source_provider: WeChat Pay
+  background: 위챗페이 QR 스캔 결제창 유효시간이 짧아 실패 다발.
+  problem: 결제창 타임아웃 60초로 QR 스캔 전 만료.
+  effect: 해외결제 성공률 상승
+  keywords:
+  - 위챗페이
+  - QR
+  - 타임아웃
+  - 해외결제
+  - 유효시간
+- id: REQ-2026-0036
+  title: 라인페이 신규 연동 (일본 가맹점)
+  func_type: NEW
+  category: 해외결제
+  sub_type: 라인페이
+  payment_methods:
+  - GLOBAL
+  dev_type:
+  - 원천사
+  - 신규개선
+  dept: 글로벌결제팀
+  author: 윤가람
+  created: '2026-06-10'
+  status: 작성중
+  source_provider: LINE Pay
+  background: 일본 진출 가맹점 대상 라인페이 결제수단 신규 연동.
+  problem: 현재 라인페이 미지원. 신규 provider 연동/스펙 필요.
+  effect: 일본 시장 결제수단 커버리지 확보
+  keywords:
+  - 라인페이
+  - 신규연동
+  - 일본
+  - 해외결제
+  - provider
+- id: REQ-2026-0040
+  title: 망취소(net-cancel) 멱등키 누락 보안 대응
+  func_type: MODIFY
+  category: API
+  sub_type: 신규API생성
+  payment_methods:
+  - CARD
+  dev_type:
+  - 보안감사
+  dept: 결제서비스개발팀
+  author: 강도현
+  created: '2026-06-12'
+  status: 개발착수
+  background: 보안 감사에서 망취소 요청 멱등키 미적용 지적.
+  problem: 승인 타임아웃 후 망취소 중복 호출 시 이중취소 위험.
+  effect: 이중취소 리스크 제거, 감사 지적사항 해소
+  keywords:
+  - 망취소
+  - net-cancel
+  - 멱등키
+  - 보안
+  - 이중취소
+- id: REQ-2026-0044
+  title: 결제 영수증 PDF 다운로드 기능 (기타)
+  func_type: NEW
+  category: 기타서비스
+  dev_type:
+  - 신규개선
+  free_text: 결제 영수증/증빙 발급 부가기능
+  dept: 플랫폼개발팀
+  author: 신예린
+  created: '2026-06-15'
+  status: 작성중
+  mid: nicepay04m
+  merchant: ㈜에듀텍
+  background: 가맹점 정산/증빙용 결제 영수증 PDF 발급 요청.
+  problem: 현재 영수증은 HTML만 제공. PDF 다운로드 부재.
+  effect: 가맹점 정산 편의, 증빙 처리 자동화
+  keywords:
+  - 영수증
+  - PDF
+  - 증빙
+  - 기타서비스
+  - 다운로드

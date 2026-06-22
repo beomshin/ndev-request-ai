@@ -1,0 +1,181 @@
+# ============================================================
+# 동적폼 분기 트리 (CategoryTree) — Ground Truth
+# ------------------------------------------------------------
+# - 설계문서 v0.3 §4.4 / §10-2 의 KnowledgeClient.getCategoryTree() 반환 데이터.
+# - KB(지식저장소) 보유 데이터 → 운영 중 상시 수정 가능(재배포 불필요).
+# - 스키마(본 구조)는 KB(작성자) 측이 정의·소유. 연동 측은 이 계약대로 채운다.
+# - 위저드 단계: (1) func_type → (2) category → (3) sub_type → (4) 공통포맷
+# - 앱 DB DynamicAnswer 는 각 단계 선택값의 *node id* 를 저장한다.
+# ============================================================
+
+meta:
+  doc_id: catalog.category_tree.v1
+  ns: catalog
+  version: "1.0"
+  effective_date: 2026-06-22
+  deprecated_date: null
+  status: ACTIVE                 # ACTIVE | DRAFT | DEPRECATED
+  last_updated: 2026-06-22
+  owner: payment-team
+  source_doc: 개발요청서_자동작성도구_설계문서_v0.3 (§4.4 동적폼 분기 트리)
+  mutable: true                  # KB 관리수단으로 상시 수정 → 위저드 다음 조회 시 반영
+
+# ============================================================
+# [SCHEMA] CategoryTree 계약 (§10-2, KB 측 정의·소유)
+# ------------------------------------------------------------
+# CategoryTree:
+#   func_types: [FuncTypeNode]          # 위저드 1단계
+#   categories: [CategoryNode]          # 위저드 2단계
+# FuncTypeNode:  { id, label, description }
+# CategoryNode:  { id, label, input_mode, sub_types: [SubTypeNode] }
+#   input_mode:  SELECT      → sub_types 중 택1
+#                FREE_TEXT   → 세부유형 없음, 자유 입력 (기타서비스)
+# SubTypeNode:   { id, label, payment_methods, free_text, spec_match_hints }
+#   payment_methods : payment_method_vocabulary.code 목록 ([] = 결제수단 매핑 없음)
+#   free_text       : true 면 '기타' 분기 → 사용자 자유 입력 활성화
+#   spec_match_hints: F10 matchSpecDocs(category, sub_type) 의 후보 policy/spec doc_id
+# ============================================================
+
+# ============================================================
+# [1] 기능 구분 (위저드 1단계)
+# ============================================================
+func_types:
+  - id: MODIFY
+    label: 기존 서비스 수정 및 기능 개선
+    description: 운영 중 서비스의 수정·개선 (AsIs/ToBe 입력 분기 대상)
+  - id: NEW
+    label: 신규 서비스 개발
+    description: 신규 지불수단/모듈 연동
+
+# ============================================================
+# [2] 결제 서비스 카테고리 → 세부유형 (위저드 2~3단계)
+# ============================================================
+categories:
+  - id: PG_STD
+    label: pg표준결제창
+    input_mode: SELECT
+    sub_types:
+      - id: PG_STD__CARD
+        label: 카드
+        payment_methods: [CARD]
+        free_text: false
+        spec_match_hints: [policy.min_amount.v1, policy.installment.v1, spec.approval.v2, spec.signdata.v2]
+      - id: PG_STD__BANK_TRANSFER
+        label: 계좌이체
+        payment_methods: [BANK]
+        free_text: false
+        spec_match_hints: [policy.min_amount.v1, spec.approval.v2]
+      - id: PG_STD__VBANK
+        label: 가상계좌
+        payment_methods: [VBANK]        # 표준결제창 PayMethod=VBANK 정식 지원 (간편결제 3사 미지원)
+        free_text: false
+        spec_match_hints: [policy.min_amount.v1, spec.approval.v2, spec.signdata.v2]
+      - id: PG_STD__MOBILE
+        label: 휴대폰결제
+        payment_methods: [CELLPHONE]    # 표준결제창 PayMethod=CELLPHONE 정식 지원 (간편결제 3사 미지원). node id는 호환 위해 유지
+        free_text: false
+        spec_match_hints: [spec.auth.v2, spec.approval.v2]
+      - id: PG_STD__ETC
+        label: 기타
+        payment_methods: []
+        free_text: true
+        spec_match_hints: []
+
+  - id: API
+    label: API
+    input_mode: SELECT
+    sub_types:
+      - id: API__NEW
+        label: 신규API생성
+        payment_methods: []
+        free_text: false
+        spec_match_hints: [spec.auth.v2, spec.approval.v2, policy.api_access_control.v1]
+      - id: API__BILLING
+        label: 빌링
+        payment_methods: [CARD]
+        free_text: false
+        spec_match_hints: [policy.recurring_payment.v1, spec.approval.v2]
+      - id: API__SMS_LINK
+        label: SMS링크결제
+        payment_methods: [CARD]
+        free_text: false
+        spec_match_hints: [spec.auth.v2]
+      - id: API__ETC
+        label: 기타
+        payment_methods: []
+        free_text: true
+        spec_match_hints: []
+
+  - id: GLOBAL
+    label: 해외결제
+    input_mode: SELECT
+    sub_types:
+      - id: GLOBAL__ALIPAY
+        label: 알리페이
+        payment_methods: []             # 해외결제 수단 vocabulary 미정(TBD)
+        free_text: false
+        spec_match_hints: [policy.currency.v1]
+      - id: GLOBAL__WECHAT
+        label: 위챗페이
+        payment_methods: []
+        free_text: false
+        spec_match_hints: [policy.currency.v1]
+      - id: GLOBAL__LINEPAY
+        label: 라인페이
+        payment_methods: []
+        free_text: false
+        spec_match_hints: [policy.currency.v1]
+      - id: GLOBAL__ETC
+        label: 기타
+        payment_methods: []
+        free_text: true
+        spec_match_hints: []
+
+  - id: ETC_SERVICE
+    label: 기타서비스
+    input_mode: FREE_TEXT               # 세부유형 없음 — 위저드 3단계 생략, 자유 입력
+    sub_types: []
+
+# ============================================================
+# [3] 결제수단 통제어휘 (payment_method controlled vocabulary)
+# ------------------------------------------------------------
+# - sub_type.payment_methods 가 참조하는 정규 코드 사전.
+# - code 는 provider_*.md 의 payment_methods[].code 와 1:1 정합해야 한다.
+# - provider_support: 해당 코드를 [C] 매트릭스에 보유한 provider 목록.
+#   [] 이면 현 단계 어느 provider 도 미지원 → status: UNSUPPORTED.
+# ============================================================
+payment_method_vocabulary:
+  - code: CARD
+    label: 신용/체크카드
+    status: SUPPORTED
+    provider_support: [PAYCO, KAKAOPAY, NAVERPAY]
+  - code: BANK
+    label: 계좌이체 / 머니(계좌)
+    status: SUPPORTED
+    provider_support: [PAYCO, KAKAOPAY, NAVERPAY]
+  - code: POINT
+    label: 포인트 / 머니
+    status: SUPPORTED
+    provider_support: [PAYCO, KAKAOPAY, NAVERPAY]
+    note: "현재 위저드 세부유형에는 노출하지 않음 — 세부유형 하위 '정책 옵션'(포인트/머니)으로 확장 예정(§4.4 TBD)."
+  - code: VBANK
+    label: 가상계좌
+    status: SUPPORTED
+    supported_by: [STANDARD_WINDOW]      # NICEPAY 표준결제창 PayMethod=VBANK 정식 지원
+    provider_support: []                 # 간편결제 3사(PAYCO/KAKAOPAY/NAVERPAY)는 미지원
+    note: "표준결제창 전용. 가상계좌 추가 파라미터 VbankExpDate 필요(spec.auth.v2). 간편결제 연동에는 미노출."
+  - code: CELLPHONE
+    label: 휴대폰결제
+    status: SUPPORTED
+    supported_by: [STANDARD_WINDOW]      # NICEPAY 표준결제창 PayMethod=CELLPHONE 정식 지원
+    provider_support: []                 # 간편결제 3사(PAYCO/KAKAOPAY/NAVERPAY)는 미지원
+    aliases: [MOBILE]                    # 구 코드 MOBILE 호환
+    note: "표준결제창 전용. 휴대폰 소액결제 추가 파라미터 GoodsCl 필요(spec.auth.v2). 간편결제 연동에는 미노출."
+
+# ============================================================
+# [4] 확장 예정(TBD) — 정책 옵션 계층 (§4.4)
+# ------------------------------------------------------------
+# 세부유형 하위 정책 옵션(할부개월 범위·포인트/머니·쿠폰 등)은 추후 본 트리에 확장.
+# 예: PG_STD__CARD → installment_range / coupon / shared_interest_free
+# 현재 미정의(TBD). 스키마 확정 후 sub_type 하위 'policy_options' 배열로 추가.
+# ============================================================

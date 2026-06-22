@@ -1,0 +1,221 @@
+# ============================================================
+# 결제 정책 마스터 인덱스 (Ground Truth)
+# - 정의서 기반 6대 카테고리 / 33개 정책 항목
+# - requests/{*}.md 의 policy_compliance_matrix 가 본 인덱스를 참조
+# - 개별 정책 상세는 policy/policy_{slug}_v{ver}.md 에서 정의
+# ============================================================
+
+meta:
+  version: "1.0"
+  effective_date: 2026-06-22
+  total_policies: 33
+  source_doc: 신규연동개발_정의서_v1.0
+  status: ACTIVE
+
+categories:
+  - code: SERVICE
+    name: 주요 서비스 정책
+    id_range: P-100 ~ P-199
+    description: 거래의 근간이 되는 주체/채널/통화 정책
+  - code: KEY
+    name: 제휴사 연동 Key
+    id_range: P-200 ~ P-299
+    description: 제휴사 인증·접근제어 키 관리 정책
+  - code: AUTH
+    name: 인증
+    id_range: P-300 ~ P-399
+    description: 결제창 호출/노출/지불수단 제어 정책
+  - code: APPROVAL
+    name: 승인
+    id_range: P-400 ~ P-499
+    description: 할부/쿠폰/금액/복합결제/타임아웃 정책
+  - code: CANCEL
+    name: 취소
+    id_range: P-500 ~ P-599
+    description: 부분취소/망취소/기취소/거래대사 정책
+  - code: ETC
+    name: 기타
+    id_range: P-600 ~ P-699
+    description: 장바구니/정기결제 등 부가 기능 정책
+
+# ============================================================
+# 33개 정책 인덱스 (개별 MD는 별도 파일로 점진 작성)
+# status: ACTIVE | DRAFT | TODO
+# ============================================================
+policies:
+  # --- SERVICE (9) ---
+  - id: P-101
+    name: 인증주체
+    category: SERVICE
+    doc_id: policy.auth_subject.v1
+    status: TODO
+  - id: P-102
+    name: 승인주체
+    category: SERVICE
+    doc_id: policy.approval_subject.v1
+    status: TODO
+  - id: P-103
+    name: 매입주체
+    category: SERVICE
+    doc_id: policy.acquiring_subject.v1
+    status: TODO
+  - id: P-104
+    name: 현금영수증 발행 주체
+    category: SERVICE
+    doc_id: policy.cash_receipt_subject.v1
+    status: TODO
+  - id: P-105
+    name: 연동 지불수단
+    category: SERVICE
+    doc_id: policy.linked_payment_method.v1
+    status: ACTIVE
+  - id: P-106
+    name: 서비스 제공 채널
+    category: SERVICE
+    doc_id: policy.service_channel.v1
+    status: TODO
+  - id: P-107
+    name: 통화종류
+    category: SERVICE
+    doc_id: policy.currency.v1
+    status: TODO
+  - id: P-108
+    name: 제휴사 자체 할인쿠폰
+    category: SERVICE
+    doc_id: policy.provider_coupon.v1
+    status: TODO
+  - id: P-109
+    name: 복합과세
+    category: SERVICE
+    doc_id: policy.composite_tax.v1
+    status: TODO
+
+  # --- KEY (2) ---
+  - id: P-201
+    name: CPID
+    category: KEY
+    doc_id: policy.cpid.v1
+    status: ACTIVE
+  - id: P-202
+    name: API 접근제어
+    category: KEY
+    doc_id: policy.api_access_control.v1
+    status: TODO
+
+  # --- AUTH (6) ---
+  - id: P-301
+    name: 인증/비인증 여부
+    category: AUTH
+    doc_id: policy.auth_required.v1
+    status: TODO
+  - id: P-302
+    name: 다이렉트 호출 지원 여부
+    category: AUTH
+    doc_id: policy.direct_call.v1
+    status: TODO
+  - id: P-303
+    name: 현금영수증 발행 정보
+    category: AUTH
+    doc_id: policy.cash_receipt_info.v1
+    status: TODO
+  - id: P-304
+    name: 대상 채널
+    category: AUTH
+    doc_id: policy.target_channel.v1
+    status: ACTIVE
+  - id: P-305
+    name: 결제창 노출
+    category: AUTH
+    doc_id: policy.payment_window_display.v1
+    status: TODO
+  - id: P-306
+    name: 연동 지불수단 제어 여부
+    category: AUTH
+    doc_id: policy.payment_method_control.v1
+    status: TODO
+
+  # --- APPROVAL (8) ---
+  - id: P-401
+    name: 할인쿠폰
+    category: APPROVAL
+    doc_id: policy.discount_coupon.v1
+    status: TODO
+  - id: P-402
+    name: 할부결제
+    category: APPROVAL
+    doc_id: policy.installment.v1
+    status: ACTIVE
+  - id: P-403
+    name: 분담무이자
+    category: APPROVAL
+    doc_id: policy.shared_interest_free.v1
+    status: TODO
+  - id: P-404
+    name: 최소 결제 금액
+    category: APPROVAL
+    doc_id: policy.min_amount.v1
+    status: ACTIVE
+  - id: P-405
+    name: 복합결제
+    category: APPROVAL
+    doc_id: policy.composite_payment.v1
+    status: ACTIVE
+  - id: P-406
+    name: 영중소 지원 여부
+    category: APPROVAL
+    doc_id: policy.sme_support.v1
+    status: TODO
+  - id: P-407
+    name: 연동 제휴사
+    category: APPROVAL
+    doc_id: policy.linked_provider.v1
+    status: TODO
+  - id: P-408
+    name: 타임아웃
+    category: APPROVAL
+    doc_id: policy.timeout.v1
+    status: ACTIVE
+
+  # --- CANCEL (6) ---
+  - id: P-501
+    name: 부분취소
+    category: CANCEL
+    doc_id: policy.partial_cancel.v1
+    status: ACTIVE
+  - id: P-502
+    name: 복합과세 부분취소
+    category: CANCEL
+    doc_id: policy.composite_tax_partial_cancel.v1
+    status: TODO
+  - id: P-503
+    name: 취소가능 기한
+    category: CANCEL
+    doc_id: policy.cancel_deadline.v1
+    status: TODO
+  - id: P-504
+    name: 제휴사 망취소 제공 여부
+    category: CANCEL
+    doc_id: policy.net_cancel_support.v1
+    status: ACTIVE
+  - id: P-505
+    name: 제휴사 기취소 제공여부
+    category: CANCEL
+    doc_id: policy.recancel_support.v1
+    status: TODO
+  - id: P-506
+    name: 제휴사 거래대사
+    category: CANCEL
+    doc_id: policy.reconciliation.v1
+    status: TODO
+
+  # --- ETC (2) ---
+  - id: P-601
+    name: 장바구니
+    category: ETC
+    doc_id: policy.cart.v1
+    status: TODO
+  - id: P-602
+    name: 정기결제
+    category: ETC
+    doc_id: policy.recurring_payment.v1
+    status: TODO

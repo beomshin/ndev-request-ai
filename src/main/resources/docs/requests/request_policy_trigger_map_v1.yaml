@@ -1,0 +1,149 @@
+# ============================================================
+# 요청서 필드 -> 정책 트리거 매핑 (F8 precheck 어시스트용)
+# doc_id: request.policy_trigger_map.v1
+# ------------------------------------------------------------
+# 목적: 개발 요청서(request.form_template.v1)의 입력/선택값에서
+#       어떤 정책(policy.*)을 평가해야 하는지 연결한다.
+#       precheck(F8)가 "무엇을 검사할지 / 어떤 경고를 띄울지"의 근거.
+# 사용처: PreCheckService -> LlmClient.precheck (KB 컨텍스트로 주입)
+# 주의(mockup): 정밀 룰엔진 스펙이 아니라 LLM 어시스트용 힌트 맵.
+#               signal은 1차 후보 추림용. 최종 판정은 정책 MD의 rule을 따른다.
+# ============================================================
+meta:
+  doc_id: request.policy_trigger_map.v1
+  ns: request
+  version: "1.0"
+  status: ACTIVE
+  last_updated: 2026-06-22
+  owner: payment-team
+  mutable: true
+  refs:
+    - request.form_template.v1
+    - catalog.category_tree.v1
+    - policy_index.yaml
+
+# ------------------------------------------------------------
+# [SCHEMA] (연동 측이 이 계약대로 소비)
+#   trigger:
+#     policy_id        : 트리거 대상 정책 (policy_index 키)
+#     policy_doc_id    : 정책 문서 doc_id
+#     source_fields    : 신호를 읽을 요청서 필드/위저드 노드
+#     signal:
+#       wizard         : 위저드 분류(category/sub_type) 조건 (해당 시 항상 평가)
+#       keywords       : 자유서술 필드에서 이 단어 감지 시 평가 후보로 승격
+#     checks           : precheck가 확인할 항목(사람/LLM 가독 서술)
+#     warning_template : 위반/의심 시 요청자에게 보여줄 경고 문구
+#     severity         : BLOCKER | WARN | INFO
+#     error_code_refs  : 연관 정책 에러코드
+# ------------------------------------------------------------
+
+triggers:
+
+  - policy_id: P-105
+    policy_doc_id: policy.linked_payment_method.v1
+    source_fields: [subType, "문제점", "제품명", "추진배경"]
+    signal:
+      wizard:
+        category: [pg표준결제창, API, 해외결제]
+      keywords: [카드, 계좌이체, 가상계좌, 휴대폰결제, 포인트, 결제수단, 지불수단]
+    checks: "요청한 결제수단이 대상 제휴사 provider.payment_methods 에 존재하는가. VBANK/MOBILE 은 현재 어떤 제휴사도 미지원."
+    warning_template: "'{value}' 결제수단은 대상 제휴사 지원 목록에 없습니다. 지원 결제수단(CARD/BANK/POINT)으로 변경하거나 제휴사 보강이 필요합니다."
+    severity: BLOCKER
+    error_code_refs: [E-SVC-105-001]
+
+  - policy_id: P-404
+    policy_doc_id: policy.min_amount.v1
+    source_fields: ["문제점", "제품명", "추진배경", "추가정보"]
+    signal:
+      wizard:
+        category: [pg표준결제창, API]
+      keywords: [최소금액, 최소 결제, 1원, 10원, 50원, 소액, 금액 하한]
+    checks: "요청 금액이 max(PG표준 100원, provider 결제수단별 min_amount) 이상인가. 100원 미만 소액결제 요청은 BLOCKER."
+    warning_template: "PG 표준 최소 결제금액은 100원입니다. '{value}' 기준 결제는 정책상 차단됩니다(P-404)."
+    severity: BLOCKER
+    error_code_refs: [E-APR-404-001, E-APR-404-002]
+
+  - policy_id: P-501
+    policy_doc_id: policy.partial_cancel.v1
+    source_fields: [subType, "문제점", "제품명", "추진배경"]
+    signal:
+      keywords: [부분취소, 부분 취소, 분할취소, 부분환불, 일부취소]
+    checks: "부분취소 요청 결제수단이 provider.payment_methods[method].partial_cancel == true 인가. PAYCO POINT 는 부분취소 불가(전체취소만)."
+    warning_template: "'{value}' 결제수단은 부분취소를 지원하지 않을 수 있습니다(예: PAYCO 포인트). 전체취소만 가능한지 확인이 필요합니다(P-501)."
+    severity: WARN
+    error_code_refs: [E-CCL-501-001, E-CCL-501-002]
+
+  - policy_id: P-504
+    policy_doc_id: policy.net_cancel_support.v1
+    source_fields: [subType, "문제점", "추진배경"]
+    signal:
+      keywords: [망취소, 망 취소, net cancel, 응답 누락, 타임아웃 취소, 결제 무효화]
+    checks: "TWO_STEP 승인 흐름에서 provider 망취소 엔드포인트/트리거 조건이 정의됐는가. cancel/netcancel 통합 시 idempotency_key 필수."
+    warning_template: "망취소 관련 요청입니다. 대상 제휴사의 망취소 엔드포인트와 트리거 조건이 정의됐는지(통합 엔드포인트면 idempotency_key 포함) 확인하세요(P-504)."
+    severity: WARN
+    error_code_refs: [E-CCL-504-001, E-CCL-504-002, E-CCL-504-003]
+
+  - policy_id: P-304
+    policy_doc_id: policy.target_channel.v1
+    source_fields: ["문제점", "제품명", "추진배경", "추가정보"]
+    signal:
+      keywords: [PC, 웹, 모바일, 앱, APP, 인앱, 결제창, 채널, SDK, IFRAME, 팝업]
+    checks: "요청 채널이 provider.integration.channel 범위 내인가, auth_method 정의됐는가. NAVERPAY 는 SDK 강제(정적 REDIRECT 단독 불가)."
+    warning_template: "요청 채널/연동 방식 확인이 필요합니다. NaverPay 연동 시 JS SDK 사전 로드가 강제되며, 앱 미지원 제휴사는 MOBILE_WEB fallback 됩니다(P-304)."
+    severity: WARN
+    error_code_refs: [E-AUT-304-001, E-AUT-304-002, E-AUT-304-003]
+
+  - policy_id: P-408
+    policy_doc_id: policy.timeout.v1
+    source_fields: [subType, "문제점", "추진배경"]
+    signal:
+      wizard:
+        func_type: [NEW]
+        category: [API, 해외결제, pg표준결제창]
+      keywords: [타임아웃, timeout, 응답시간, 응답 지연, 재시도, retry]
+    checks: "신규 연동 시 5개 API(PAYMENT_WINDOW/AUTH/APPROVAL/CANCEL/NET_CANCEL) 타임아웃이 모두 정의됐는가. (현재 provider 문서에 5종 timeout 맵 미비 — 별도 보완 항목)"
+    warning_template: "신규 연동은 API별 타임아웃(5종)이 모두 정의되어야 합니다. 대상 제휴사 timeout 정의 여부를 확인하세요(P-408)."
+    severity: INFO
+    error_code_refs: [E-APR-408-001, E-APR-408-003]
+
+  - policy_id: P-201
+    policy_doc_id: policy.cpid.v1
+    source_fields: ["개발유형(원천사 관계)", "원천사명", "MID", subType]
+    signal:
+      wizard:
+        func_type: [NEW]
+      keywords: [CPID, 제휴사 키, 발급, 신규 연동, 가맹점 식별]
+    checks: "신규 제휴사/서비스라인 연동 시 환경별(운영/개발/테스트) CPID 분리 발급이 고려됐는가. 실값 노출 금지."
+    warning_template: "신규 연동에는 환경별 분리된 CPID 발급이 필요합니다. 운영/개발/테스트 CPID 분리 계획을 확인하세요(P-201)."
+    severity: INFO
+    error_code_refs: [E-KEY-201-001, E-KEY-201-003]
+
+  - policy_id: P-402
+    policy_doc_id: policy.installment.v1
+    source_fields: [subType, "문제점", "제품명", "추진배경", "추가정보"]
+    signal:
+      wizard:
+        category: [pg표준결제창, API]
+      keywords: [할부, 무이자, 개월, 12개월, 6개월, installment, 분담무이자]
+    checks: "할부는 CARD 전용(POINT/BANK 요청 시 E-APR-402-002). 요청 개월수가 provider.payment_methods[CARD].installment 목록(0,2~12)에 있는가(E-APR-402-001). 11·12개월은 카드사 실한도(통상 10개월) 초과 가능 — 차단 아닌 확인항목 승격(E-APR-402-003)."
+    warning_template: "할부 {value}개월 요청 — 게이트웨이는 최대 12개월 지원하나, 일부 카드사는 통상 10개월까지만 승인합니다. 대상 카드사 할부 한도 확인이 필요합니다(P-402)."
+    severity: WARN
+    error_code_refs: [E-APR-402-001, E-APR-402-002, E-APR-402-003]
+
+  - policy_id: P-405
+    policy_doc_id: policy.composite_payment.v1
+    source_fields: [subType, "문제점", "제품명", "추진배경", "추가정보"]
+    signal:
+      wizard:
+        category: [pg표준결제창, API]
+      keywords: [복합결제, 분할결제, 포인트, 머니, 쿠폰, 포인트 차감, MultiCl, 혼용결제]
+    checks: "복합결제(승인응답 MultiCl=1)는 PAYCO/KAKAOPAY/TOSSPAY만 지원(E-APR-405-002). 구성금액 합(MultiCardAcquAmt+MultiPointAmt+MultiCouponAmt)이 총 승인금액 Amt와 일치하는가(E-APR-405-003). 복합결제 거래의 부분취소는 P-501과 함께 검토."
+    warning_template: "복합결제('{value}') 요청 — 지원 제휴사(페이코/카카오/토스), 구성금액 합산 일치, 부분취소 제약 확인이 필요합니다(P-405)."
+    severity: WARN
+    error_code_refs: [E-APR-405-002, E-APR-405-003]
+
+# ------------------------------------------------------------
+# [GAPS] precheck가 기대하지만 KB에 정책 문서가 없는 항목
+#   -> 매핑은 비워두고 갭으로 추적 (mockup 단계 의도적 노출)
+# ------------------------------------------------------------
+gaps: []   # (2026-06-22) P-405 복합결제 문서 작성·정식 트리거 승격 완료 → 잔여 갭 없음

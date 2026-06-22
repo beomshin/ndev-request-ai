@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
@@ -58,6 +59,8 @@ public class DocServiceImpl implements DocService {
 
     @PostConstruct
     void initGemini() {
+        // 키 누락 시 부팅을 즉시 막아 호출 시점의 의미 모를 403을 차단한다.
+        Assert.hasText(geminiApiKey, "GEMINI_API_KEY 환경변수가 설정 필요 (application.yml의 gemini.api-key)");
         this.client = Client.builder().apiKey(geminiApiKey).build();
         this.config = GenerateContentConfig.builder()
                 .systemInstruction(SYSTEM_INSTRUCTION)

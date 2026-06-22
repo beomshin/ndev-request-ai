@@ -1,0 +1,8 @@
+node_modules
+.vite
+.DS_Store
+dist
+*.log
+# routeTree.gen.ts는 빌드 산출물이지만, 첫 부트스트랩 편의를 위해 커밋해도 무방.
+# 팀 정책에 따라 무시하려면 아래 주석 해제.
+# src/routeTree.gen.ts

@@ -2,6 +2,8 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.0'
     id 'io.spring.dependency-management' version '1.1.6'
+    // 프론트엔드(npm/vite) 빌드를 Gradle 라이프사이클에 통합. 시스템 node를 그대로 쓴다(download=false).
+    id 'com.github.node-gradle.node' version '7.1.0'
 }
 
 group = 'com.nice'
@@ -37,4 +39,56 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// 프론트엔드(Vite) 빌드 통합
+//
+// 흐름: frontendInstall → frontendBuild → processResources(stage) → bootJar
+// 출력: frontend/dist 가 아니라 vite.config.ts 의 outDir 설정대로
+//       src/main/resources/static/ 에 직접 떨어진다 → Spring Boot가 그대로 서빙.
+// ─────────────────────────────────────────────────────────────────────
+
+node {
+    // CI/사내 환경에서 node 버전 의존성을 피하기 위해 시스템 node 사용.
+    // 폐쇄망에서 node를 사전 반입한 뒤 PATH에 두면 그대로 동작한다.
+    download = false
+    nodeProjectDir = file("${rootDir}/frontend")
+}
+
+def staticDir = file("${rootDir}/src/main/resources/static")
+
+// npm ci 대신 install — 첫 부트스트랩 친화. lockfile 있으면 빠르게 끝남.
+tasks.named('npmInstall').configure {
+    inputs.file("${rootDir}/frontend/package.json")
+    inputs.file("${rootDir}/frontend/package-lock.json").optional()
+    outputs.dir("${rootDir}/frontend/node_modules")
+}
+
+// vite build — 입력 변경 없으면 UP-TO-DATE 캐싱
+tasks.register('frontendBuild', com.github.gradle.node.npm.task.NpmTask) {
+    group = 'frontend'
+    description = 'Vite 프로덕션 번들을 src/main/resources/static/ 에 생성'
+    dependsOn 'npmInstall'
+    args = ['run', 'build']
+
+    inputs.dir("${rootDir}/frontend/src").withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(
+            "${rootDir}/frontend/package.json",
+            "${rootDir}/frontend/vite.config.ts",
+            "${rootDir}/frontend/tsconfig.json",
+            "${rootDir}/frontend/index.html",
+            "${rootDir}/frontend/components.json"
+    )
+    outputs.dir(staticDir)
+}
+
+// 자바 리소스 스테이징보다 먼저 vite 빌드가 끝나도록 의존성 연결.
+tasks.named('processResources').configure {
+    dependsOn 'frontendBuild'
+}
+
+// gradle clean 시 정적 산출물도 같이 청소.
+tasks.named('clean').configure {
+    delete staticDir
 }

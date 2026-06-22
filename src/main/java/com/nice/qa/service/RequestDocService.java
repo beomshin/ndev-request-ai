@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class RequestDocService {
+public class RequestDocService implements DocService{
 
     private final LlmClient llmClient;
     private final KnowledgeClient knowledgeClient;
@@ -31,6 +31,7 @@ public class RequestDocService {
      * @param req
      * @return
      */
+    @Override
     public String assembleMarkdown(DevRequestRequest req) {
         // 1. KB 컨텍스트 수집
         List<SpecDocRef> specDocs = knowledgeClient.matchSpecDocs(req.category(), req.subType());
@@ -102,8 +103,4 @@ public class RequestDocService {
         return md.toString();
     }
 
-
-    public String assembleMarkdown2(DevRequestRequest req) {
-        return null;
-    }
 }

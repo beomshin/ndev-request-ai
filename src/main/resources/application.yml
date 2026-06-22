@@ -21,3 +21,14 @@ knowledge:
 # 외부 시스템(SHARE/Plane/Confluence) 자동 연계 — Phase 0은 noop 고정
 external-sync:
   provider: ${EXT_SYNC_PROVIDER:noop}   # noop | share
+
+gemini:
+  api-key:
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha

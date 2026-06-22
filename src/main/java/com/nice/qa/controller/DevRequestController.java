@@ -2,10 +2,10 @@ package com.nice.qa.controller;
 
 import com.nice.qa.model.api.dto.DevRequestRequest;
 import com.nice.qa.service.DesignFlowService;
-import com.nice.qa.service.RequestDocService;
+import com.nice.qa.service.DocService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,21 +28,27 @@ import java.util.zip.ZipOutputStream;
 @Slf4j
 @RestController
 @RequestMapping("/api/dev-requests")
-@RequiredArgsConstructor
 public class DevRequestController {
 
     private static final DateTimeFormatter TS_FMT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 
-    private final RequestDocService requestDocService;
+    private final DocService docService;
     private final DesignFlowService designFlowService;
+
+    public DevRequestController(@Qualifier("LLMDocService") DocService docService, DesignFlowService designFlowService) {
+        this.docService = docService;
+        this.designFlowService = designFlowService;
+    }
 
     @PostMapping("/generate")
     public ResponseEntity<byte[]> generateDevRequest(
             @Valid @RequestBody DevRequestRequest request
     ) {
 
-        String markdown = requestDocService.assembleMarkdown(request); // MD파일 생성
+        String markdown = docService.assembleMarkdown(request); // MD파일 생성
         byte[] flowPng = designFlowService.renderPng(request); // PNG 플로우 생성
+
+        log.info("Markdown: {}", markdown);
 
         byte[] zip = buildZip(markdown, flowPng);
         String filename = "devrequest_" + LocalDateTime.now().format(TS_FMT) + ".zip";

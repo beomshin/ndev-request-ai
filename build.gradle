@@ -28,6 +28,7 @@ dependencies {
     // 원격에서 추가된 의존성 — 머지 시점에 양쪽 모두 살림
     implementation 'org.apache.poi:poi-ooxml:5.4.0'
     implementation 'com.google.genai:google-genai:1.58.0'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

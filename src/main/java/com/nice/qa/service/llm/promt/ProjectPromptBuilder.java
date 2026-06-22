@@ -22,17 +22,18 @@ public class ProjectPromptBuilder {
             """;
 
     private static final String PROCEDURE = """
-            # 분석 절차 (반드시 순서대로 수행)
-            1) 의도 파악: 현업이 진짜로 해결하고 싶은 문제와 목표가 무엇인지 파악한다.
-            2) R&R 판정: 이 요청이 PG개발실에서 처리할 일인지 판단한다. 결제창/인증·승인·취소·환불/정산/웹훅 등 PG 연동 영역이면 진행 가능(developmentInProgress=true), 그 외(예: 단순 마케팅 페이지, 타 시스템 영역)면 false 로 두고 transferGuide 에 이관 부서·행동을 적는다.
-            3) 개발유형 분류: 아래 기준으로 4개 Boolean 을 판정한다.
-               - merchantRelatedDevelopment: 특정 가맹점(MID·상호명)과 직접 얽힌 개발인가
-               - providerRelatedDevelopment: 원천사(카드사/PG사 등) 규격·연동 변경이 필요한가
-               - newServiceOrSelfImprovement: 신규 서비스이거나 자체 개선 성격인가 (funcType 참고)
-               - securityAndAuditDevelopment: 보안/감사/컴플라이언스 대응 성격인가
-            4) IT 명세화: 현업의 비즈니스 표현을 참고 문서의 구체적 PG/기술 용어로 매핑한다 (결제창 요청 파라미터, 승인/취소/환불 API, 할부개월 옵션 필드, 웹훅 노티 등).
-            5) 필드 채우기: 위 결과를 아래 스키마에 정확히 채운다.
-            """;
+        # 분석 절차 (반드시 순서대로 수행)
+        1) 의도 파악: 현업이 진짜로 해결하고 싶은 문제와 목표가 무엇인지 파악한다.
+        2) R&R 판정: 이 요청이 PG개발실에서 처리할 일인지 판단한다. 결제창/인증·승인·취소·환불/정산/웹훅 등 PG 연동 영역이면 진행 가능(developmentInProgress=true), 그 외(예: 단순 마케팅 페이지, 타 시스템 영역)면 false 로 두고 transferGuide 에 이관 부서·행동을 적는다.
+        3) 요청사항 추론: 현업 입력과 참고 문서를 근거로, 명시되지 않았지만 이 목표 달성에 실제로 필요한 요청사항(기능·정책·연동 항목)을 추론해 구체화한다.
+        4) 요청사항에 따른 추가 업무 체크: 위 요청사항을 구현할 때 함께 처리해야 할 부수 업무를 점검한다. 아래 기준으로 4개 Boolean 을 판정한다.
+           - merchantRelatedDevelopment: 특정 가맹점(MID·상호명)과 직접 얽힌 개발인가
+           - providerRelatedDevelopment: 원천사(카드사/PG사 등) 규격·연동 변경이 필요한가
+           - newServiceOrSelfImprovement: 신규 서비스이거나 자체 개선 성격인가 (funcType 참고)
+           - securityAndAuditDevelopment: 보안/감사/컴플라이언스 대응 성격인가
+        5) IT 명세화: 현업의 비즈니스 표현을 참고 문서의 구체적 PG/기술 용어로 매핑한다 (결제창 요청 파라미터, 승인/취소/환불 API, 할부개월 옵션 필드, 웹훅 노티 등).
+        6) 필드 채우기: 위 결과를 아래 스키마에 정확히 채운다.
+        """;
 
     private static final String ISSUE_RULE = """
             # issueAndImprovement 작성 규칙 (가장 중요)

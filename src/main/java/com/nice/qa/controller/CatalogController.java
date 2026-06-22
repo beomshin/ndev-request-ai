@@ -1,7 +1,7 @@
 package com.nice.qa.controller;
 
-import com.nice.qa.service.knowledge.dto.CategoryTree;
 import com.nice.qa.service.knowledge.KnowledgeClient;
+import com.nice.qa.service.knowledge.dto.CategoryTree;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;

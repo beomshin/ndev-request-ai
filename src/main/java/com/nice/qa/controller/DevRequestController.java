@@ -1,11 +1,11 @@
 package com.nice.qa.controller;
 
 import com.nice.qa.model.api.dto.DevRequestRequest;
-import com.nice.qa.service.DesignFlowService;
 import com.nice.qa.service.DocService;
+import com.nice.qa.service.FlowService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,17 +28,13 @@ import java.util.zip.ZipOutputStream;
 @Slf4j
 @RestController
 @RequestMapping("/api/dev-requests")
+@RequiredArgsConstructor
 public class DevRequestController {
 
     private static final DateTimeFormatter TS_FMT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 
     private final DocService docService;
-    private final DesignFlowService designFlowService;
-
-    public DevRequestController(@Qualifier("LLMDocService") DocService docService, DesignFlowService designFlowService) {
-        this.docService = docService;
-        this.designFlowService = designFlowService;
-    }
+    private final FlowService flowService;
 
     @PostMapping("/generate")
     public ResponseEntity<byte[]> generateDevRequest(
@@ -46,7 +42,7 @@ public class DevRequestController {
     ) {
 
         String markdown = docService.assembleMarkdown(request); // MD파일 생성
-        byte[] flowPng = designFlowService.renderPng(request); // PNG 플로우 생성
+        byte[] flowPng = flowService.renderPng(markdown); // PNG 플로우 생성
 
         log.info("Markdown: {}", markdown);
 

@@ -23,7 +23,7 @@ external-sync:
   provider: ${EXT_SYNC_PROVIDER:noop}   # noop | share
 
 gemini:
-  api-key:
+  api-key: ${GEMINI_API_KEY:}
 
 springdoc:
   api-docs:

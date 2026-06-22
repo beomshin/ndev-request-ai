@@ -33,6 +33,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleValidation(Exception e) {
+        log.error("Exception", e);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("status", 500);
         body.put("error", "INTERNAL_SERVER_ERROR");

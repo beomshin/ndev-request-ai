@@ -1,13 +1,34 @@
-# 서버 설정
+# 서버 설정 (다른 프로젝트와 충돌 방지로 8090. SERVER_PORT 환경변수로 덮어쓰기 가능)
 server:
-  port: 8080
+  port: ${SERVER_PORT:8090}
 
 spring:
   application:
     name: nice-qa
 
-# LLM 설정 (환경변수 LLM_BASE_URL, LLM_MODEL, LLM_API_KEY 로 덮어쓰기 가능)
+# LLM 어댑터 스위치 + 사내 LLM 접속 정보 (Phase 0은 stub 고정, 실값은 placeholder)
 llm:
-  base-url: ${LLM_BASE_URL:https://placeholder.example.com/v1}
-  model: ${LLM_MODEL:placeholder-model}
-  api-key: ${LLM_API_KEY:placeholder-api-key}
+  provider: ${LLM_PROVIDER:stub}        # stub | internal | external
+  base-url: ${LLM_BASE_URL:}
+  model: ${LLM_MODEL:}
+  api-key: ${LLM_API_KEY:}
+
+# 지식저장소(KB) 어댑터 스위치 + 접속 정보
+knowledge:
+  provider: ${KB_PROVIDER:stub}         # stub | internal
+  base-url: ${KB_BASE_URL:}
+
+# 외부 시스템(SHARE/Plane/Confluence) 자동 연계 — Phase 0은 noop 고정
+external-sync:
+  provider: ${EXT_SYNC_PROVIDER:noop}   # noop | share
+
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha

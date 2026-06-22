@@ -18,10 +18,18 @@ repositories {
 }
 
 dependencies {
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // PlantUML 소스를 PNG로 렌더링 (FlowImageRenderer in-process 사용)
+    implementation 'net.sourceforge.plantuml:plantuml:1.2024.7'
+    // 원격에서 추가된 의존성 — 머지 시점에 양쪽 모두 살림
     implementation 'org.apache.poi:poi-ooxml:5.4.0'
     implementation 'com.google.genai:google-genai:1.58.0'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14'
+    implementation 'com.github.vlsi.mxgraph:jgraphx:4.2.2'        // draw.io 호환 mxGraph 렌더러
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

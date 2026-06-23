@@ -11,13 +11,13 @@
 meta:
   doc_id: catalog.category_tree.v1
   ns: catalog
-  version: "1.0"
+  version: "1.1"
   effective_date: 2026-06-22
   deprecated_date: null
   status: ACTIVE                 # ACTIVE | DRAFT | DEPRECATED
-  last_updated: 2026-06-22
+  last_updated: 2026-06-23
   owner: payment-team
-  source_doc: 개발요청서_자동작성도구_설계문서_v0.3 (§4.4 동적폼 분기 트리)
+  source_doc: 개발요청서_자동작성도구_설계문서_v0.3 (§4.4 동적폼 분기 트리 + STEP3~6 정적 입력 필드)
   mutable: true                  # KB 관리수단으로 상시 수정 → 위저드 다음 조회 시 반영
 
 # ============================================================
@@ -41,11 +41,11 @@ meta:
 # ============================================================
 func_types:
   - id: MODIFY
-    label: 기존 서비스 수정 및 기능 개선
-    description: 운영 중 서비스의 수정·개선 (AsIs/ToBe 입력 분기 대상)
+    label: 기존 서비스 수정·개선
+    description: 이미 운영 중인 기능을 수정/개선합니다.
   - id: NEW
     label: 신규 서비스 개발
-    description: 신규 지불수단/모듈 연동
+    description: 이전에 없던 새 결제 흐름·기능을 추가합니다.
 
 # ============================================================
 # [2] 결제 서비스 카테고리 → 세부유형 (위저드 2~3단계)
@@ -135,6 +135,182 @@ categories:
     label: 기타서비스
     input_mode: FREE_TEXT               # 세부유형 없음 — 위저드 3단계 생략, 자유 입력
     sub_types: []
+
+# ============================================================
+# [SCHEMA-2] 정적 입력 필드 계약 (STEP 3~6, 화면 기준 추가)
+# ------------------------------------------------------------
+# - 위저드 STEP 1·2 는 동적 분기(func_types / categories) → 위 [1][2] 가 소유.
+# - STEP 3~6 은 분기와 무관한 *정적 입력 필드* → 본 [5] form_steps 가 소유.
+# - 앱 DB 는 각 field.id 를 키로 입력값을 저장한다(StaticAnswer).
+# FormStep:  { step, id, label, progress, source | groups:[FieldGroup] }
+#   source : DYNAMIC(func_types) | DYNAMIC(categories)  → 동적 트리 참조(필드 정의 없음)
+# FieldGroup: { id, label, fields:[Field] }
+# Field: { id, label, type, required, placeholder, help_text,
+#          readonly, auto, accept, options:[{id,label}] }
+#   type : TEXT | TEXTAREA | DATE | RADIO | FILE | AUTO_DATE
+#   required : true 면 필수(*) — 화면 라벨의 * 표기와 1:1.
+#   auto     : true 면 시스템 자동 채움(예: 작성일).
+# ============================================================
+
+# ============================================================
+# [5] 위저드 폼 단계 정의 (STEP 1~6 전체 오케스트레이션)
+# ============================================================
+form_steps:
+  - step: 1
+    id: STEP_FUNC_TYPE
+    label: 유형
+    progress: 17
+    title: 어떤 유형의 개발 요청인가요?
+    subtitle: 신규 기능을 새로 만드는 작업인지, 기존 기능을 고치거나 개선하는 작업인지 선택해 주세요.
+    source: DYNAMIC(func_types)          # 필드 정의 없음 — 위 [1] func_types 참조
+
+  - step: 2
+    id: STEP_CATEGORY
+    label: 대분류
+    progress: 33
+    title: 어떤 영역의 작업인가요?
+    subtitle: 결제·API·해외결제 같은 큰 분류 → 세부 유형 순으로 골라 주세요.
+    source: DYNAMIC(categories)          # 필드 정의 없음 — 위 [2] categories 참조
+
+  - step: 3
+    id: STEP_BASIC
+    label: 기본·배경
+    progress: 50
+    title: 기본·배경 정보를 알려 주세요
+    subtitle: 작성자/부서와 이 요청이 왜 필요한지(추진배경)를 적어 주세요. 자동 추론 가능한 정보는 다음 단계에서 AI가 채웁니다.
+    groups:
+      - id: BASIC_MAIN
+        label: 기본 정보
+        fields:
+          - id: author
+            label: 작성자
+            type: TEXT
+            required: true
+            placeholder: 홍길동
+          - id: author_dept
+            label: 작성 부서
+            type: TEXT
+            required: true
+            placeholder: PG결제개발실
+          - id: created_at
+            label: 작성일
+            type: AUTO_DATE
+            required: false
+            readonly: true
+            auto: true                   # 시스템 자동 채움(YYYY-MM-DD)
+          - id: merchant_info
+            label: 가맹점 정보
+            type: TEXT
+            required: false
+            placeholder: 가맹점 상호명/MID
+          - id: source_company
+            label: 원천사 정보
+            type: TEXT
+            required: false
+            placeholder: "예: 카카오페이 / 토스페이먼츠 등"
+          - id: background
+            label: 추진 배경
+            type: TEXTAREA
+            required: true
+            placeholder: 이 개발이 왜 필요한지 한두 문단으로 설명해 주세요. 비즈니스 언어로 적어도 괜찮습니다.
+
+  - step: 4
+    id: STEP_DETAIL_1
+    label: 상세 1/2
+    progress: 67
+    title: 상세 요청 정보 (1/2)
+    subtitle: 언제까지, 무엇을 만들지 알려 주세요.
+    groups:
+      - id: DETAIL_SCHEDULE
+        label: 상세 요청 정보 (1/2)
+        fields:
+          - id: service_name
+            label: 개발 서비스명
+            type: TEXT
+            required: true
+            placeholder: "예: 신규 카드 결제 모듈"
+          - id: target_date
+            label: 목표 일정
+            type: DATE
+            required: true
+            placeholder: 2026-09-30
+            help_text: YYYYMMDD 형식으로 입력해도 자동으로 변환합니다.   # 라벨 보조: (YYYY-MM-DD)
+          - id: target_date_basis
+            label: 목표 일정 근거
+            type: TEXT
+            required: false
+            placeholder: "예: 가맹점 프로모션 런칭일 / 카드사 규격 변경 시점"
+
+  - step: 5
+    id: STEP_DETAIL_2
+    label: 상세 2/2 · 임팩트
+    progress: 83
+    title: 상세 요청 정보 (2/2) · 비즈니스 임팩트
+    subtitle: 개선이 필요한 문제와 이 개발로 기대되는 효과를 적어 주세요.
+    groups:
+      - id: IMPACT
+        label: 비즈니스 임팩트
+        fields:
+          - id: problem_statement
+            label: 문제점 / 개선점
+            type: TEXTAREA
+            required: true
+            placeholder: 현재 어떤 문제가 있고, 무엇을 어떻게 개선하고 싶은지 구체적으로 적어 주세요.
+          - id: problem_evidence
+            label: 문제점 확인 방법
+            type: TEXT
+            required: false
+            placeholder: "예: 운영 로그 / 가맹점 민원 통계 / VOC 분석"
+          - id: occurrence_frequency
+            label: 발생 빈도 (정량)
+            type: TEXT
+            required: false
+            placeholder: "예: 월 12건 / 결제 시도의 약 0.3%"
+          - id: competitor_info
+            label: 경쟁사 정보
+            type: TEXT
+            required: false
+            placeholder: "예: A사·B사 이미 해당 결제 수단 지원 중 (전환율 +6.4%p)"
+          - id: expected_revenue
+            label: 예상 수익
+            type: TEXT
+            required: false
+            placeholder: "예: 월 결제액 3.2억 증가 예상"
+          - id: expected_loss
+            label: 예상 손해 / 리스크
+            type: TEXT
+            required: false
+            placeholder: "예: 추가 PG 수수료 월 0.4억"
+
+  - step: 6
+    id: STEP_AI_DEEP
+    label: AI 심층 질의
+    progress: 100
+    title: AI 심층 질의 (마지막)
+    subtitle: 앞 단계에서 고른 영역에 맞춰, 정책 확정에 필요한 추가 정보를 모읍니다. 모르거나 확정되지 않은 항목은 옆 체크박스로 [추가 확인]에 담아 두세요.
+    groups:
+      - id: ASIS_TOBE
+        label: AS-IS → TO-BE
+        fields:
+          - id: asis_tobe_scope
+            label: AS-IS → TO-BE
+            type: RADIO
+            required: false
+            options:
+              - id: UI
+                label: UI (화면 노출 문구/요소)
+              - id: API
+                label: API (요청/응답 필수 항목)
+      - id: ATTACHMENT
+        label: 연동 규격서 첨부
+        fields:
+          - id: spec_doc_attachment
+            label: 연동 규격서 첨부
+            type: FILE
+            required: false
+            accept: [PDF, DOCX, MD]
+            placeholder: 연동 규격서 파일을 드래그하거나 클릭해 업로드 (PDF / DOCX / MD)
+            help_text: "※ Phase 0은 파일명만 기록합니다. 실제 업로드는 추후 보강."
 
 # ============================================================
 # [3] 결제수단 통제어휘 (payment_method controlled vocabulary)

@@ -1,5 +1,7 @@
 package com.nice.qa.controller;
 
+import com.nice.qa.exception.DiagramRenderException;
+import com.nice.qa.exception.LlmException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -7,13 +9,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-
-/**
- * 검증 에러를 JSON으로 반환. xlsx 응답과 섞이지 않도록 별도 핸들러.
- */
 @Slf4j
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -24,20 +23,43 @@ public class ApiExceptionHandler {
         e.getBindingResult().getFieldErrors()
                 .forEach(fe -> fieldErrors.put(fe.getField(), fe.getDefaultMessage()));
 
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("status", 400);
-        body.put("error", "Bad Request");
-        body.put("fieldErrors", fieldErrors);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                errorBody(400, "BAD_REQUEST", null, fieldErrors));
+    }
+
+    @ExceptionHandler(LlmException.class)
+    public ResponseEntity<Map<String, Object>> handleLlm(LlmException e) {
+        log.error("[ApiExceptionHandler] LLM 호출 실패: {}", e.getMessage(), e);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
+                errorBody(502, "LLM_ERROR", "LLM 서비스 호출에 실패했습니다. 잠시 후 다시 시도해 주세요.", null));
+    }
+
+    @ExceptionHandler(DiagramRenderException.class)
+    public ResponseEntity<Map<String, Object>> handleDiagramRender(DiagramRenderException e) {
+        log.error("[ApiExceptionHandler] 다이어그램 렌더링 실패: {}", e.getMessage(), e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                errorBody(500, "DIAGRAM_RENDER_ERROR", "다이어그램 생성에 실패했습니다.", null));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(Exception e) {
-        log.error("Exception", e);
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("status", 500);
-        body.put("error", "INTERNAL_SERVER_ERROR");
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    public ResponseEntity<Map<String, Object>> handleGeneral(Exception e) {
+        log.error("[ApiExceptionHandler] 예기치 않은 오류 발생", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                errorBody(500, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다.", null));
     }
 
+    private static Map<String, Object> errorBody(
+            int status, String error, String message, Map<String, String> fieldErrors) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", Instant.now().toString());
+        body.put("status", status);
+        body.put("error", error);
+        if (message != null) {
+            body.put("message", message);
+        }
+        if (fieldErrors != null) {
+            body.put("fieldErrors", fieldErrors);
+        }
+        return body;
+    }
 }

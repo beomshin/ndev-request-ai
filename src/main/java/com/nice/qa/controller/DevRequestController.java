@@ -3,27 +3,22 @@ package com.nice.qa.controller;
 import com.nice.qa.model.api.dto.DevRequestRequest;
 import com.nice.qa.service.DocService;
 import com.nice.qa.service.FlowService;
+import com.nice.qa.service.llm.dto.ProjectMdResult;
+import com.nice.qa.util.ZipBuilder;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+import java.util.Map;
 
 /**
- * 개발요청서 + 설계 flow PNG를 zip으로 묶어 다운로드.
+ * 개발요청서 + 설계 흐름 PNG를 ZIP으로 묶어 다운로드.
  */
 @Slf4j
 @RestController
@@ -40,14 +35,17 @@ public class DevRequestController {
     public ResponseEntity<byte[]> generateDevRequest(
             @Valid @RequestBody DevRequestRequest request
     ) {
+        log.info("[DevRequest] ZIP 생성 요청 (author={}, serviceName={})",
+                request.author(), request.serviceName());
+        long start = System.currentTimeMillis();
 
-        String markdown = docService.assembleMarkdown(request); // MD파일 생성
-        byte[] flowPng = flowService.renderPng(markdown); // PNG 플로우 생성
+        String markdown = docService.assembleMarkdown(request);
+        byte[] flowPng = flowService.renderPng(markdown);
+        byte[] zip = ZipBuilder.buildDevRequestZip(markdown, flowPng);
 
-        log.info("Markdown: {}", markdown);
-
-        byte[] zip = buildZip(markdown, flowPng);
         String filename = "devrequest_" + LocalDateTime.now().format(TS_FMT) + ".zip";
+        log.info("[DevRequest] ZIP 생성 완료 ({}ms, {}bytes, filename={})",
+                System.currentTimeMillis() - start, zip.length, filename);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("application/zip"));
@@ -57,23 +55,17 @@ public class DevRequestController {
         return ResponseEntity.ok().headers(headers).body(zip);
     }
 
-    // requirements.md + flow.png 두 엔트리로 zip 생성
-    private byte[] buildZip(String markdown, byte[] flowPng) {
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream();
-             ZipOutputStream zos = new ZipOutputStream(out)) {
-
-            zos.putNextEntry(new ZipEntry("requirements.md"));
-            zos.write(markdown.getBytes(StandardCharsets.UTF_8));
-            zos.closeEntry();
-
-            zos.putNextEntry(new ZipEntry("flow.png"));
-            zos.write(flowPng);
-            zos.closeEntry();
-
-            zos.finish();
-            return out.toByteArray();
-        } catch (IOException e) {
-            throw new RuntimeException("zip 생성 실패", e);
-        }
+    @GetMapping("/generate")
+    public ResponseEntity<Map<String, Object>> generateDevRequestJson(
+            @Valid @ModelAttribute DevRequestRequest request
+    ) {
+        log.info("[DevRequest] JSON 생성 요청 (author={}, serviceName={})",
+                request.author(), request.serviceName());
+        ProjectMdResult result = docService.assembleJson(request);
+        return ResponseEntity.ok(Map.of(
+                "resultCode", "0000",
+                "resultMsg", "SUCCESS",
+                "devRequest", result
+        ));
     }
 }

@@ -43,10 +43,33 @@ public class FlowServiceImpl implements FlowService {
                     + "draw.io 호환 시퀀스 다이어그램(mxGraph XML)으로 정확히 표현합니다."));
 
     private static final List<String> REFERENCE_LINKS = List.of(
-            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/pg_error_code_manual.md",
-            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/pg_internal_policy.md",
-            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/spec/nicepay_auth_spec.md",
-            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/templates/standard_dev_request_output.md");
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/catalog/catalog_category_tree_v1.yaml",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_composite_payment_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_cpid_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_error_message_mapping_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_index.yaml",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_installment_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_linked_payment_method_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_min_amount_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_net_cancel_support_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_new_payment_checklist_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_partial_cancel_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_target_channel_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_template.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/policy/policy_timeout_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/provider/provider_kakaopay_v2.0.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/provider/provider_naverpay_v1.5.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/provider/provider_payco_v1.2.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/requests/request_examples_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/requests/request_form_template_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/requests/request_history_v1.yaml",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/requests/request_policy_trigger_map_v1.yaml",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/spec/spec_approval_v2.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/spec/spec_auth_v2.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/spec/spec_netcancel_v1.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/spec/spec_signdata_v2.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/spec/spec_template.md",
+            "https://github.com/beomshin/ndev-request-ai/blob/main/src/main/resources/docs/README_KB.md");
 
     /** 렌더링 실패 시 대체 다이어그램. */
     private static final String FALLBACK_XML = """

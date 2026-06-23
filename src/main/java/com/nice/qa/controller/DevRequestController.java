@@ -3,22 +3,21 @@ package com.nice.qa.controller;
 import com.nice.qa.model.api.dto.DevRequestRequest;
 import com.nice.qa.service.DocService;
 import com.nice.qa.service.FlowService;
+import com.nice.qa.service.llm.dto.ProjectMdResult;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -55,6 +54,20 @@ public class DevRequestController {
         headers.setContentLength(zip.length);
 
         return ResponseEntity.ok().headers(headers).body(zip);
+    }
+
+    @GetMapping("/generate")
+    public ResponseEntity<Map<String, Object>> generateDevRequestJson(
+            @Valid @ModelAttribute DevRequestRequest request
+    ) {
+        ProjectMdResult result = docService.assembleJson(request);
+        return ResponseEntity.ok(
+                Map.of(
+                        "resultCode", "0000",
+                        "resultMsg", "SUCCESS",
+                        "devRequest", result
+                )
+        );
     }
 
     // requirements.md + flow.png 두 엔트리로 zip 생성

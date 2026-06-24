@@ -85,7 +85,7 @@ function AppLayout() {
   const navItems = [
     { to: "/", label: "대시보드", icon: "▦" },
     { to: "/new", label: "새 요청서 작성", icon: "✎" },
-    { to: "/result", label: "최근 생성 문서", icon: "▤" },
+    { to: "/list", label: "생성 요청서 목록", icon: "▤" },
     { to: "/knowledge", label: "지식 저장소", icon: "◈" },
   ] as const;
 

@@ -1,7 +1,10 @@
 import type {
   AdditionalCheckItem,
   BackendDevRequest,
+  GenerateJsonResponse,
   GenerateResponse,
+  GenerateResult,
+  ProjectMdResult,
   WizardData,
 } from "./types";
 
@@ -115,6 +118,122 @@ function composeChecksSection(items: AdditionalCheckItem[]): string | null {
     return `- (slide ${it.slide}) ${it.field}${reason}`;
   });
   return `[추가 확인 필요 항목 — 위저드 수집]\n${lines.join("\n")}`;
+}
+
+/**
+ * GET /api/dev-requests/generate — JSON 응답으로 ProjectMdResult + 표준 양식 MD를 한 번에 받는다.
+ * Gemini 호출은 백엔드에서 1회로 끝나고, MD는 같은 결과를 markdownRenderer로 변환한 것.
+ */
+export async function fetchDevRequestJson(data: WizardData): Promise<GenerateResult> {
+  const payload = toBackendPayload(data);
+  const qs = new URLSearchParams();
+  // 한글 자동 인코딩 — Spring의 @ModelAttribute가 record 파라미터로 받음
+  (Object.entries(payload) as [keyof BackendDevRequest, string][]).forEach(([k, v]) => {
+    if (v != null) qs.set(k, v);
+  });
+
+  const res = await fetch(`${GENERATE_URL}?${qs.toString()}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = JSON.stringify(await res.json());
+    } catch {
+      detail = await res.text();
+    }
+    throw new Error(`요청서 생성 실패 ${res.status}: ${detail}`);
+  }
+
+  const json = (await res.json()) as GenerateJsonResponse;
+  if (!json?.devRequest) {
+    throw new Error("응답에 devRequest 가 없습니다.");
+  }
+  return { result: json.devRequest, markdown: json.markdown ?? "" };
+}
+
+/**
+ * 백엔드 ProjectMdResult + 위저드 입력 + 추가확인을 합쳐
+ * /api/requests 의 DevRequestSaveRequest 페이로드로 변환.
+ */
+export function toSavePayload(args: {
+  data: WizardData;
+  generate: GenerateResult;
+}): {
+  title: string;
+  categoryPath: string;
+  status: "AI_ANALYZED";
+  author?: string;
+  dept?: string;
+  details: string;
+  combinedMarkdown: string;
+  flowDiagram?: string;
+  unconfirmedSection?: string;
+} {
+  const { data, generate } = args;
+  const r = generate.result;
+  const title = r.productName?.trim() || data.serviceName?.trim() || "(제목 없음)";
+  const parts: string[] = [];
+  if (data.funcType) parts.push(data.funcType);
+  if (data.category) parts.push(data.category);
+  if (data.subType) parts.push(data.subType);
+  const categoryPath = parts.join(" / ");
+
+  // 위저드 입력과 LLM 결과를 한 묶음 JSON으로 details에 저장 — 재현/감사용
+  const details = JSON.stringify(
+    {
+      wizard: data,
+      projectMd: r,
+    },
+    null,
+    2,
+  );
+
+  // 위저드의 [잘 모름/추가확인] 항목을 MD 섹션 또는 JSON으로 보존
+  const checks = data.additionalCheckItems ?? [];
+  const unconfirmedSection = checks.length === 0
+    ? ""
+    : checks
+        .map((c) => `- (S${c.slide}) ${c.field}${c.reason ? ` — ${c.reason}` : ""}`)
+        .join("\n");
+
+  return {
+    title,
+    categoryPath,
+    status: "AI_ANALYZED",
+    author: r.author ?? data.author,
+    dept: r.department ?? data.department,
+    details,
+    combinedMarkdown: generate.markdown,
+    // 현재 흐름에선 위저드 단계에서 PlantUML/mxGraph 원본 텍스트를 보유하지 않음.
+    // 추후 flow 별도 엔드포인트가 생기면 그 응답을 여기 채운다.
+    flowDiagram: undefined,
+    unconfirmedSection: unconfirmedSection || undefined,
+  };
+}
+
+/**
+ * POST /api/dev-requests/generate — zip(requirements.md + flow.png) 다운로드.
+ * 호출 측에서 Blob을 받아 a.download 트리거. 현재 /result의 [다운로드] 버튼에서만 사용.
+ */
+export async function downloadDevRequestZip(data: WizardData): Promise<Blob> {
+  const payload = toBackendPayload(data);
+  const res = await fetch(GENERATE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Accept: "application/zip",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let detail = "";
+    try { detail = JSON.stringify(await res.json()); } catch { detail = await res.text(); }
+    throw new Error(`zip 다운로드 실패 ${res.status}: ${detail}`);
+  }
+  return await res.blob();
 }
 
 export async function submitDevRequest(data: WizardData): Promise<GenerateResponse> {

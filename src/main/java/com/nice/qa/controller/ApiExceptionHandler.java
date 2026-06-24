@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -39,6 +40,13 @@ public class ApiExceptionHandler {
         log.error("[ApiExceptionHandler] 다이어그램 렌더링 실패: {}", e.getMessage(), e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 errorBody(500, "DIAGRAM_RENDER_ERROR", "다이어그램 생성에 실패했습니다.", null));
+    }
+
+    /** 정적 자원 미발견(favicon.ico 같은 것)은 그냥 404로 — catch-all이 ERROR로 잡지 않게 별도 처리. */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResource(NoResourceFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                errorBody(404, "NOT_FOUND", e.getResourcePath(), null));
     }
 
     @ExceptionHandler(Exception.class)

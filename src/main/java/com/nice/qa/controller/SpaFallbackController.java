@@ -16,8 +16,8 @@ public class SpaFallbackController {
     // /api/** 는 매핑되지 않으므로 영향 없음.
     @GetMapping(value = {
             "/",
-            "/{path:^(?!api|swagger-ui|v3|assets|favicon\\.ico)[^.]+}",
-            "/{path:^(?!api|swagger-ui|v3|assets)[^.]+}/{sub:[^.]+}"
+            "/{path:^(?!api|swagger-ui|v3|assets|h2-console|favicon\\.ico)[^.]+}",
+            "/{path:^(?!api|swagger-ui|v3|assets|h2-console)[^.]+}/{sub:[^.]+}"
     })
     public String forwardToSpa() {
         return "forward:/index.html";

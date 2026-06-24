@@ -25,6 +25,9 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // 요청서 영속화 — H2(파일 모드)로 시작, 사내 DB로 갈아끼울 땐 yml + 드라이버 교체만
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'com.h2database:h2'
     // PlantUML 소스를 PNG로 렌더링 (FlowImageRenderer in-process 사용)
     implementation 'net.sourceforge.plantuml:plantuml:1.2024.7'
     // 원격에서 추가된 의존성 — 머지 시점에 양쪽 모두 살림

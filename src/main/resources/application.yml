@@ -6,6 +6,25 @@ spring:
   application:
     name: nice-qa
 
+  # 요청서 영속화 — H2 파일 모드. 데이터 파일은 ./data/req-genie 에 생성됨 (.gitignore 권장).
+  # 사내 DB(MariaDB/MySQL/Postgres) 전환 시 url/driver/dialect만 갈아끼우면 됨.
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:./data/req-genie;MODE=MYSQL;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}    # 파일럿: update / 운영: validate + Flyway 권장
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  h2:
+    console:
+      enabled: ${H2_CONSOLE:true}
+      path: /h2-console
+
 # LLM 어댑터 스위치 + 사내 LLM 접속 정보 (Phase 0은 stub 고정, 실값은 placeholder)
 llm:
   provider: ${LLM_PROVIDER:stub}        # stub | internal | external

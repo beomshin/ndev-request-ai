@@ -28,13 +28,11 @@ dependencies {
     // 요청서 영속화 — H2(파일 모드)로 시작, 사내 DB로 갈아끼울 땐 yml + 드라이버 교체만
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     runtimeOnly 'com.h2database:h2'
-    // PlantUML 소스를 PNG로 렌더링 (FlowImageRenderer in-process 사용)
-    implementation 'net.sourceforge.plantuml:plantuml:1.2024.7'
-    // 원격에서 추가된 의존성 — 머지 시점에 양쪽 모두 살림
-    implementation 'org.apache.poi:poi-ooxml:5.4.0'
-    implementation 'com.google.genai:google-genai:1.58.0'
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14'
-    implementation 'com.github.vlsi.mxgraph:jgraphx:4.2.2'        // draw.io 호환 mxGraph 렌더러
+    // LLM·문서 처리
+    implementation 'com.google.genai:google-genai:1.58.0'           // Gemini 2.5 Flash
+    implementation 'com.github.vlsi.mxgraph:jgraphx:4.2.2'          // mxGraph XML → PNG 렌더러
+    implementation 'org.apache.poi:poi-ooxml:5.4.0'                 // (예비) xlsx 출력 — 현재 미사용
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14'  // Swagger UI
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

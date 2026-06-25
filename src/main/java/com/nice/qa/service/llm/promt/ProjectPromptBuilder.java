@@ -256,7 +256,7 @@ public class ProjectPromptBuilder {
                 - 서비스명(serviceName): %s
                 - 추진배경(background): %s
                 - 목표일정(targetSchedule): %s
-                - 문제점/개선점(problemAndImprovement): %s"""
+                - 추가사항(problemAndImprovement): %s"""
                 .formatted(
                         nz(req.funcType()), nz(req.category()), nz(req.subType()),
                         nz(req.author()), nz(req.department()), nz(req.serviceName()),

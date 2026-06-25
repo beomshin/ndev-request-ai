@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useWizard, WizardProvider } from "./WizardContext";
 import { TOTAL_SLIDES } from "./types";
-import { submitDevRequest } from "./submit";
+import { fetchDevRequestJson, toSavePayload } from "./submit";
+import { useSaveRequest } from "@/lib/requests";
 import { Slide1FuncType } from "./slides/Slide1FuncType";
 import { Slide2Category } from "./slides/Slide2Category";
 import { Slide3Basics } from "./slides/Slide3Basics";
@@ -56,12 +57,22 @@ function WizardInner() {
   const { state, next, prev, goto } = useWizard();
   const navigate = useNavigate();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const saveRequest = useSaveRequest();
 
+  // 위저드 [요청서 생성하기] 한 번에 두 단계가 묶여 돈다:
+  //   ① Gemini 호출 (백엔드 GET generate) → ProjectMdResult + markdown
+  //   ② DB 저장 (POST /api/requests) → 저장된 id 받음
+  //   ③ /result/{id} 상세로 이동 (DB 기반 영구 페이지)
   const submit = useMutation({
-    mutationFn: () => submitDevRequest(state.data),
-    onSuccess: () => {
-      // 성공 시 /result로. (응답 JSON 안에 requestId 등이 들어가도록 백엔드 §12-1 보강 시 그걸 query로 넘김)
-      void navigate({ to: "/result" });
+    mutationFn: async () => {
+      const generate = await fetchDevRequestJson(state.data);
+      const payload = toSavePayload({ data: state.data, generate });
+      const saved = await saveRequest.mutateAsync(payload);
+      return saved;
+    },
+    onSuccess: (saved) => {
+      // fullPath 기준 (식별자는 /result_/$id 지만, to는 사용자 URL 기준 /result/$id)
+      void navigate({ to: "/result/$id", params: { id: String(saved.id) } });
     },
     onError: (e: unknown) => {
       setSubmitError(e instanceof Error ? e.message : String(e));

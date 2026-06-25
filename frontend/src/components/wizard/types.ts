@@ -29,7 +29,7 @@ export type BackendDevRequest = {
   problemAndImprovement: string;
 };
 
-// 백엔드 응답 (design.md §6 generate)
+// 백엔드 응답 (design.md §6 generate) — 초기안. 현재 백엔드는 zip 또는 아래 ProjectMdResult JSON 둘 중 하나 반환.
 export type GenerateResponse = {
   requestId: string;
   requirementsMarkdown: string;
@@ -38,6 +38,80 @@ export type GenerateResponse = {
   flowImageUrl?: string;
   downloadUrl?: string;
 };
+
+// 백엔드 ProjectMdResult — `GET /api/dev-requests/generate` 응답의 devRequest 필드와 1:1.
+// 28필드 모두 선택형(LLM이 못 채우면 null/빈문자열)이라 표시 측에서 빈값 처리 필요.
+export type ProjectMdResult = {
+  // 기본 정보
+  author?: string;
+  createdDate?: string;
+  department?: string;
+  projectId?: string;
+  // 가맹점 정보
+  mid?: string;
+  merchantName?: string;
+  merchantBusinessNumber?: string;
+  // 원천사 정보
+  providerName?: string;
+  providerCollaborationBackground?: string;
+  // 추진 배경 / 목표
+  promotionBackground?: string;
+  additionalInfo?: string;
+  targetDate?: string;
+  productName?: string;
+  // 문제점 / 서비스 정보
+  issueAndImprovement?: string;
+  issueVerificationMethod?: string;
+  serviceChannelAndPaymentMethod?: string;
+  authApprovalAcquirerSubject?: string;
+  // 결제 정책
+  minimumPaymentAmount?: string;
+  partialCancelAndRefundPolicy?: string;
+  cashReceiptIssuer?: string;
+  // 기대 효과
+  expectedRevenue?: string;
+  expectedLoss?: string;
+  expectedEffect?: string;
+  // 이관 / 개발 정보
+  transferGuide?: string;
+  developmentInProgress?: boolean | null;
+  merchantRelatedDevelopment?: boolean | null;
+  providerRelatedDevelopment?: boolean | null;
+  newServiceOrSelfImprovement?: boolean | null;
+  securityAndAuditDevelopment?: boolean | null;
+
+  // 핑퐁 방지 — AI가 추론 못 한 항목을 현업에게 한 번에 묻기 위한 질문 목록
+  pendingQuestions?: string[];
+  // AI 추론 근거 (가정) — 현업이 명시 안 한 항목을 어떻게 채웠는지 투명 공개
+  assumptionList?: string[];
+  // 개발 착수 전 완료 필요한 선행 조건
+  prerequisiteActions?: string;
+  // IT 관점의 구체적 개발 범위 (신규/수정 대상 모듈·API·화면, 영향 범위)
+  developmentScope?: string;
+  // 예상 복잡도: LOW | MID | HIGH
+  estimatedComplexity?: "LOW" | "MID" | "HIGH" | string;
+  // 일정/원천사/정책/기술 리스크와 제약
+  riskAndConstraints?: string;
+};
+
+// GET /api/dev-requests/generate JSON 응답 래퍼.
+// markdown은 백엔드가 표준 양식 v1.6으로 렌더해 같이 내려주는 본문 (Gemini 호출은 1회).
+export type GenerateJsonResponse = {
+  resultCode: string;
+  resultMsg: string;
+  devRequest: ProjectMdResult;
+  markdown?: string;
+};
+
+// 위저드 submit 후 백엔드에서 받은 두 산출물 묶음.
+export type GenerateResult = {
+  result: ProjectMdResult;
+  markdown: string;
+};
+
+// (참고) 이전엔 /result 임시 화면을 위해 React Query cache로 결과를 들고 있었지만,
+// 위저드 제출 후 곧장 /result/{id} DB 상세로 이동하는 흐름으로 단순화되며 제거됨.
+// 화면이 다시 cache 기반이 되면 LatestResultEntry/LATEST_RESULT_QUERY_KEY를 부활.
 
 // ─────────────────────────────────────────────────────────────────────
 // 위저드 추가 수집 데이터 (백엔드 DTO에 직접 들어가지 않는 것들)

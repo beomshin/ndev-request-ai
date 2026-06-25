@@ -3,7 +3,6 @@ package com.nice.qa.controller;
 import com.nice.qa.model.api.dto.DevRequestRequest;
 import com.nice.qa.service.DocService;
 import com.nice.qa.service.FlowService;
-import com.nice.qa.service.llm.dto.ProjectMdResult;
 import com.nice.qa.util.ZipBuilder;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +17,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 /**
- * 개발요청서 + 설계 흐름 PNG를 ZIP으로 묶어 다운로드.
+ * 개발요청서 + 설계 흐름 PNG를 ZIP으로 묶어 다운로드 (POST)
+ * + FE 위저드 자동 저장 흐름용 JSON 응답 (GET)
  */
 @Slf4j
 @RestController
@@ -55,17 +55,23 @@ public class DevRequestController {
         return ResponseEntity.ok().headers(headers).body(zip);
     }
 
+    /**
+     * FE 위저드 자동 저장 흐름이 호출 — ProjectMdResult와 표준 양식 MD를 한 번에 받는다.
+     * Gemini 호출은 여전히 1회 (assembleBoth 내부에서 결과 → markdownRenderer만 추가).
+     * markdown은 FE가 DB 저장 시 combinedMarkdown으로 그대로 넘긴다.
+     */
     @GetMapping("/generate")
     public ResponseEntity<Map<String, Object>> generateDevRequestJson(
             @Valid @ModelAttribute DevRequestRequest request
     ) {
         log.info("[DevRequest] JSON 생성 요청 (author={}, serviceName={})",
                 request.author(), request.serviceName());
-        ProjectMdResult result = docService.assembleJson(request);
+        DocService.AssembledDoc doc = docService.assembleBoth(request);
         return ResponseEntity.ok(Map.of(
                 "resultCode", "0000",
                 "resultMsg", "SUCCESS",
-                "devRequest", result
+                "devRequest", doc.result(),
+                "markdown", doc.markdown()
         ));
     }
 }

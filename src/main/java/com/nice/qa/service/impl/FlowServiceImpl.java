@@ -48,13 +48,14 @@ public class FlowServiceImpl implements FlowService {
     @Override
     public byte[] renderPng(String markdown) {
         log.info("[FlowService] 다이어그램 PNG 생성 시작");
-        String xml = generateDiagramXml(markdown);
+        String xml = generateXml(markdown);
         byte[] png = mxGraphRenderer.toPng(xml);
         log.info("[FlowService] 다이어그램 PNG 생성 완료 ({}bytes)", png.length);
         return png;
     }
 
-    private String generateDiagramXml(String markdown) {
+    @Override
+    public String generateXml(String markdown) {
         String prompt = diagramPromptBuilder.build(
                 markdown, ReferenceLinks.ALL, DiagramPromptBuilder.DiagramType.SEQUENCE);
         GenerateContentConfig config = buildConfig();

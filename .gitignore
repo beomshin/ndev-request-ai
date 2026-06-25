@@ -39,3 +39,9 @@ out/
 ### OS ###
 .DS_Store
 Thumbs.db
+
+### App data (H2 파일 DB, 임시 산출물) ###
+/data/
+/devrequest.zip
+/server.log
+/server.err.log

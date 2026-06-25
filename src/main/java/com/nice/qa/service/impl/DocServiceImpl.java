@@ -58,6 +58,22 @@ public class DocServiceImpl implements DocService {
         return requestProjectMd(prompt);
     }
 
+    /**
+     * FE 위저드 자동 저장 흐름용 — Gemini 호출 1회로 JSON + MD 둘 다 생성.
+     * (assembleJson + markdownRenderer 통과. LLM 추가 호출 X)
+     */
+    @Override
+    public AssembledDoc assembleBoth(DevRequestRequest request) {
+        log.info("[DocService] JSON+MD 동시 생성 시작 (author={}, serviceName={})",
+                request.author(), request.serviceName());
+        String prompt = promptBuilder.build(request, ReferenceLinks.ALL);
+        ProjectMdResult result = requestProjectMd(prompt);
+        applyDeterministicFields(result, request);
+        String markdown = markdownRenderer.render(result);
+        log.info("[DocService] JSON+MD 생성 완료 (length={})", markdown.length());
+        return new AssembledDoc(result, markdown);
+    }
+
     private ProjectMdResult requestProjectMd(String prompt) {
         GenerateContentConfig config = buildConfig();
         String raw = llmClient.generate(prompt, config, "메타데이터추출");

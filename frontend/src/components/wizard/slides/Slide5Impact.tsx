@@ -5,53 +5,69 @@ import { SlideShell } from "../shared/SlideShell";
 import { useWizard } from "../WizardContext";
 
 // S5 — 상세 요청 2/2 + 비즈니스 임팩트.
-// problemAndImprovement만 백엔드 DTO에 직접 들어가고, 나머지는 본문 섹션으로 합쳐 전달.
+// funcType=NEW(신규)면 "문제점/개선점"·"발생 빈도" 필드를 숨긴다 — 신규 개발엔 해당 없음.
+//   - 백엔드 DevRequestRequest.problemAndImprovement는 @NotBlank라 빈값 못 보냄
+//     → submit.ts에서 NEW일 때 "신규 서비스 개발"로 자동 채워 보낸다.
 export function Slide5Impact() {
   const { state, patch } = useWizard();
   const d = state.data;
+  const isNew = d.funcTypeCode === "NEW";
 
   return (
     <SlideShell
       step={5}
-      title="상세 요청 정보 (2/2) · 비즈니스 임팩트"
-      description="개선이 필요한 문제와 이 개발로 기대되는 효과를 적어 주세요."
+      title={isNew ? "비즈니스 임팩트 (2/3)" : "상세 요청 정보 (2/3) · 비즈니스 임팩트"}
+      description={
+        isNew
+          ? "신규 개발의 기대 효과와 경쟁 환경을 적어 주세요. (문제점·발생 빈도는 기존 서비스 수정 시에만 입력)"
+          : "개선이 필요한 문제와 이 개발로 기대되는 효과를 적어 주세요."
+      }
     >
-      <div>
-        <Label htmlFor="problemAndImprovement" className="text-xs">
-          문제점 / 개선점 *
-        </Label>
-        <Textarea
-          id="problemAndImprovement"
-          rows={5}
-          value={d.problemAndImprovement ?? ""}
-          onChange={(e) => patch({ problemAndImprovement: e.target.value })}
-          placeholder="현재 어떤 문제가 있고, 무엇을 어떻게 개선하고 싶은지 구체적으로 적어 주세요."
-        />
-      </div>
+      {/* 문제점/개선점 — MODIFY만 노출. NEW는 submit 시 자동 placeholder 채움. */}
+      {!isNew && (
+        <div>
+          <Label htmlFor="problemAndImprovement" className="text-xs">
+            문제점 / 개선점 *
+          </Label>
+          <Textarea
+            id="problemAndImprovement"
+            rows={5}
+            value={d.problemAndImprovement ?? ""}
+            onChange={(e) => patch({ problemAndImprovement: e.target.value })}
+            placeholder="현재 어떤 문제가 있고, 무엇을 어떻게 개선하고 싶은지 구체적으로 적어 주세요."
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="problemDetectionMethod" className="text-xs">
-            문제점 확인 방법 (선택)
-          </Label>
-          <Input
-            id="problemDetectionMethod"
-            value={d.problemDetectionMethod ?? ""}
-            onChange={(e) => patch({ problemDetectionMethod: e.target.value })}
-            placeholder="예: 운영 로그 / 가맹점 민원 통계 / VOC 분석"
-          />
-        </div>
-        <div>
-          <Label htmlFor="occurrenceFrequency" className="text-xs">
-            발생 빈도 (정량, 선택)
-          </Label>
-          <Input
-            id="occurrenceFrequency"
-            value={d.occurrenceFrequency ?? ""}
-            onChange={(e) => patch({ occurrenceFrequency: e.target.value })}
-            placeholder="예: 월 12건 / 결제 시도의 약 0.3%"
-          />
-        </div>
+        {/* MODIFY 전용: 문제점 확인 방법 / 발생 빈도 */}
+        {!isNew && (
+          <>
+            <div>
+              <Label htmlFor="problemDetectionMethod" className="text-xs">
+                문제점 확인 방법 (선택)
+              </Label>
+              <Input
+                id="problemDetectionMethod"
+                value={d.problemDetectionMethod ?? ""}
+                onChange={(e) => patch({ problemDetectionMethod: e.target.value })}
+                placeholder="예: 운영 로그 / 가맹점 민원 통계 / VOC 분석"
+              />
+            </div>
+            <div>
+              <Label htmlFor="occurrenceFrequency" className="text-xs">
+                발생 빈도 (정량, 선택)
+              </Label>
+              <Input
+                id="occurrenceFrequency"
+                value={d.occurrenceFrequency ?? ""}
+                onChange={(e) => patch({ occurrenceFrequency: e.target.value })}
+                placeholder="예: 월 12건 / 결제 시도의 약 0.3%"
+              />
+            </div>
+          </>
+        )}
+
         <div className="sm:col-span-2">
           <Label htmlFor="competitorInfo" className="text-xs">경쟁사 정보 (선택)</Label>
           <Input

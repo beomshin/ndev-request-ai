@@ -7,7 +7,6 @@ import {
   type DevRequestDetail,
   type DevRequestStatus,
 } from "@/lib/requests";
-import { downloadDevRequestZip } from "@/components/wizard/submit";
 import type {
   AdditionalCheckItem,
   AsIsToBe,
@@ -65,8 +64,6 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
   const navigate = useNavigate();
   const deleteReq = useDeleteRequest();
   const [copied, setCopied] = useState(false);
-  const [zipBusy, setZipBusy] = useState(false);
-  const [zipErr, setZipErr] = useState<string | null>(null);
 
   // 저장 시점에 details에 직렬화한 위저드 입력 + ProjectMdResult를 다시 복원
   const parsed: ParsedDetails = useMemo(() => {
@@ -98,34 +95,6 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
     }
   };
 
-  const downloadZip = async () => {
-    if (!wizard) {
-      window.alert("zip 다운로드에 필요한 원본 입력이 없습니다.");
-      return;
-    }
-    if (!window.confirm("zip 다운로드는 Gemini를 다시 호출합니다 (10~20초 소요, 한도 사용). 진행할까요?")) {
-      return;
-    }
-    setZipBusy(true);
-    setZipErr(null);
-    try {
-      const blob = await downloadDevRequestZip(wizard);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const ts = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 15);
-      a.download = `devrequest_${ts}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      setZipErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setZipBusy(false);
-    }
-  };
-
   const onDelete = async () => {
     if (!window.confirm("이 요청서를 삭제하시겠습니까? (소프트 삭제 — 복원은 DB 수동)")) return;
     await deleteReq.mutateAsync(detail.id);
@@ -136,8 +105,6 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
     <div className="px-10 py-8 max-w-[1180px] mx-auto">
       {/* 브레드크럼 */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-        <Link to="/" className="hover:text-foreground">대시보드</Link>
-        <span>/</span>
         <Link to="/list" className="hover:text-foreground">생성 요청서 목록</Link>
         <span>/</span>
         <span className="text-foreground font-mono">#{detail.id}</span>
@@ -156,7 +123,6 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
                 {detail.categoryPath}
               </span>
             )}
-            <DevStatusBadge inProgress={r.developmentInProgress} />
           </div>
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">
             {detail.title || r.productName || "개발요청서"}
@@ -180,13 +146,6 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
               {copied ? "✓ 복사됨" : "⎘ MD 복사"}
             </button>
             <button
-              onClick={downloadZip}
-              disabled={zipBusy || !wizard}
-              className="rounded-md bg-primary text-primary-foreground px-3 py-2 text-xs font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {zipBusy ? "준비 중…" : "⬇ zip 다운로드"}
-            </button>
-            <button
               onClick={onDelete}
               disabled={deleteReq.isPending}
               className="rounded-md border border-destructive/40 text-destructive px-3 py-2 text-xs font-medium hover:bg-destructive/10 disabled:opacity-50"
@@ -194,21 +153,8 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
               🗑 삭제
             </button>
           </div>
-          {zipErr && <span className="text-[11px] text-destructive max-w-[300px] text-right">{zipErr}</span>}
         </div>
       </div>
-
-      {/* R&R 반려 시 별도 카드 */}
-      {r.developmentInProgress === false && r.transferGuide && (
-        <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-5">
-          <div className="text-xs font-semibold text-destructive uppercase tracking-wider mb-2">
-            ❌ PG개발실 R&R 아님 — 접수 불가
-          </div>
-          <div className="text-sm text-foreground leading-relaxed whitespace-pre-line">
-            {r.transferGuide}
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-3 gap-6">
         <article className="col-span-2 rounded-xl border border-border bg-card overflow-hidden">
@@ -422,7 +368,6 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
             <div className="space-y-3 text-xs">
               <Metric label="요청서 완성도" v={`${completeness}%`} tone={completeness >= 80 ? "success" : completeness >= 50 ? undefined : "warn"} />
               <Metric label="추가 확인 항목" v={`${checks.length}건`} tone={checks.length > 0 ? "warn" : "success"} />
-              <Metric label="R&R 판정" v={devStatusLabel(r.developmentInProgress)} />
               <Metric label="DB id" v={`#${detail.id}`} />
             </div>
           </div>
@@ -648,24 +593,6 @@ function ComplexityBadge({ value }: { value: string }) {
   );
 }
 
-function DevStatusBadge({ inProgress }: { inProgress?: boolean | null }) {
-  if (inProgress === true) {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-[color:var(--success)]/15 text-[color:var(--success)]">
-        ✅ 진행 가능
-      </span>
-    );
-  }
-  if (inProgress === false) {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-destructive/15 text-destructive">
-        ❌ R&R 아님
-      </span>
-    );
-  }
-  return null;
-}
-
 // ─────────────────────────────────────────────────────────────────────
 // 헬퍼
 // ─────────────────────────────────────────────────────────────────────
@@ -681,12 +608,6 @@ function boolLabel(v: boolean | undefined): string | undefined {
   if (v === true) return "사용 가능";
   if (v === false) return "사용 불가";
   return undefined;
-}
-
-function devStatusLabel(v?: boolean | null): string {
-  if (v === true) return "진행 가능";
-  if (v === false) return "R&R 아님";
-  return "판정 보류";
 }
 
 function formatAmount(raw?: string): string | undefined {

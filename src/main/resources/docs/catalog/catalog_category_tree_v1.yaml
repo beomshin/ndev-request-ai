@@ -90,6 +90,7 @@ categories:
         payment_methods: []
         free_text: false
         spec_match_hints: [spec.auth.v2, spec.approval.v2, policy.api_access_control.v1]
+        available_func_types: [NEW]      # 신규 서비스 개발에서만 노출 (기존 수정에선 숨김)
       - id: API__BILLING
         label: 빌링
         payment_methods: [CARD]
@@ -284,9 +285,9 @@ form_steps:
 
   - step: 6
     id: STEP_AI_DEEP
-    label: AI 심층 질의
+    label: 상세 3/3
     progress: 100
-    title: AI 심층 질의 (마지막)
+    title: 상세 3/3
     subtitle: 앞 단계에서 고른 영역에 맞춰, 정책 확정에 필요한 추가 정보를 모읍니다. 모르거나 확정되지 않은 항목은 옆 체크박스로 [추가 확인]에 담아 두세요.
     groups:
       - id: ASIS_TOBE

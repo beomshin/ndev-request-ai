@@ -11,7 +11,7 @@ export function Slide4Details() {
   return (
     <SlideShell
       step={4}
-      title="상세 요청 정보 (1/2)"
+      title="상세 요청 정보 (1/3)"
       description="언제까지, 무엇을 만들지 알려 주세요."
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,11 +1,18 @@
 package com.nice.qa.service.knowledge;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.nice.qa.service.knowledge.dto.*;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -21,39 +28,80 @@ public class StubKnowledgeClient implements KnowledgeClient {
     private static final int CHUNK_LIMIT = 5;
     private static final int CONTENT_MAX_CHARS = 800;
 
+    private static final String CATALOG_YAML_PATH = "docs/catalog/catalog_category_tree_v1.yaml";
+
     private final DocRepository docRepository;
+
+    /** 부팅 시 yaml을 한 번 파싱해 메모리에 보관. classpath 자원은 런타임 변경 불가라 캐싱 안전. */
+    private CategoryTree cachedCategoryTree;
+
+    @PostConstruct
+    void loadCatalog() {
+        try (InputStream is = new ClassPathResource(CATALOG_YAML_PATH).getInputStream()) {
+            JsonNode root = new YAMLMapper().readTree(is);
+            this.cachedCategoryTree = new CategoryTree(
+                    parseFuncTypes(root.path("func_types")),
+                    parseCategories(root.path("categories"))
+            );
+            log.info("[KB] catalog yaml 로드 완료 — funcTypes={}, categories={}",
+                    cachedCategoryTree.funcTypes().size(),
+                    cachedCategoryTree.categories().size());
+        } catch (IOException e) {
+            throw new IllegalStateException("catalog yaml 로드 실패: " + CATALOG_YAML_PATH, e);
+        }
+    }
 
     @Override
     public CategoryTree getCategoryTree() {
-        List<CategoryTree.FuncType> funcTypes = List.of(
-                new CategoryTree.FuncType("modify", "기존 서비스 수정·개선"),
-                new CategoryTree.FuncType("new", "신규 서비스 개발")
-        );
+        return cachedCategoryTree;
+    }
 
-        List<CategoryTree.CategoryNode> categories = List.of(
-                new CategoryTree.CategoryNode("pg_std_pay", "pg표준결제창", List.of(
-                        new CategoryTree.SubType("card", "카드"),
-                        new CategoryTree.SubType("bank", "계좌이체"),
-                        new CategoryTree.SubType("virtual_account", "가상계좌"),
-                        new CategoryTree.SubType("mobile", "휴대폰결제"),
-                        new CategoryTree.SubType("etc", "기타")
-                )),
-                new CategoryTree.CategoryNode("api", "API", List.of(
-                        new CategoryTree.SubType("new_api", "신규API생성"),
-                        new CategoryTree.SubType("billing", "빌링"),
-                        new CategoryTree.SubType("sms_link", "SMS링크결제"),
-                        new CategoryTree.SubType("etc", "기타")
-                )),
-                new CategoryTree.CategoryNode("overseas", "해외결제", List.of(
-                        new CategoryTree.SubType("alipay", "알리페이"),
-                        new CategoryTree.SubType("wechat", "위챗페이"),
-                        new CategoryTree.SubType("linepay", "라인페이"),
-                        new CategoryTree.SubType("etc", "기타")
-                )),
-                new CategoryTree.CategoryNode("etc", "기타서비스", List.of())
-        );
+    private static List<CategoryTree.FuncType> parseFuncTypes(JsonNode arr) {
+        List<CategoryTree.FuncType> result = new ArrayList<>();
+        if (!arr.isArray()) return result;
+        for (JsonNode n : arr) {
+            result.add(new CategoryTree.FuncType(
+                    n.path("id").asText(),
+                    n.path("label").asText(),
+                    n.path("description").asText("")
+            ));
+        }
+        return result;
+    }
 
-        return new CategoryTree(funcTypes, categories);
+    private static List<CategoryTree.CategoryNode> parseCategories(JsonNode arr) {
+        List<CategoryTree.CategoryNode> result = new ArrayList<>();
+        if (!arr.isArray()) return result;
+        for (JsonNode c : arr) {
+            List<CategoryTree.SubType> subs = new ArrayList<>();
+            JsonNode subArr = c.path("sub_types");
+            if (subArr.isArray()) {
+                for (JsonNode s : subArr) {
+                    subs.add(new CategoryTree.SubType(
+                            s.path("id").asText(),
+                            s.path("label").asText(),
+                            toStringList(s.path("payment_methods")),
+                            s.path("free_text").asBoolean(false),
+                            toStringList(s.path("spec_match_hints")),
+                            toStringList(s.path("available_func_types"))
+                    ));
+                }
+            }
+            result.add(new CategoryTree.CategoryNode(
+                    c.path("id").asText(),
+                    c.path("label").asText(),
+                    c.path("input_mode").asText(""),
+                    subs
+            ));
+        }
+        return result;
+    }
+
+    private static List<String> toStringList(JsonNode arr) {
+        if (!arr.isArray()) return List.of();
+        List<String> result = new ArrayList<>();
+        arr.forEach(n -> result.add(n.asText()));
+        return result;
     }
 
     @Override

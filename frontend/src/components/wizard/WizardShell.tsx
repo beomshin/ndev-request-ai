@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useWizard, WizardProvider } from "./WizardContext";
-import { TOTAL_SLIDES } from "./types";
+import { isIntakeSlideActive } from "./types";
 import { fetchDevRequestJson, toSavePayload } from "./submit";
 import { useSaveRequest } from "@/lib/requests";
 import { Slide1FuncType } from "./slides/Slide1FuncType";
@@ -13,6 +13,7 @@ import { Slide3Basics } from "./slides/Slide3Basics";
 import { Slide4Details } from "./slides/Slide4Details";
 import { Slide5Impact } from "./slides/Slide5Impact";
 import { Slide6AiDeepDive } from "./slides/Slide6AiDeepDive";
+import { Slide7PaymentMethodIntake } from "./slides/Slide7PaymentMethodIntake";
 import type { WizardData } from "./types";
 
 // 외부 진입점 — 라우트(new.tsx)에서 이걸 쓴다.
@@ -24,13 +25,13 @@ export function WizardShell() {
   );
 }
 
-// 단계별 메타 — 진행 표시·필수값 검증 함수 부착
-const STEPS: {
+type StepMeta = {
   n: number;
   label: string;
-  // 각 슬라이드의 [다음] 활성 조건 (필수 입력)
   canProceed: (d: WizardData) => boolean;
-}[] = [
+};
+
+const BASE_STEPS: StepMeta[] = [
   { n: 1, label: "유형", canProceed: (d) => !!d.funcType },
   { n: 2, label: "대분류", canProceed: (d) => !!d.category },
   {
@@ -41,17 +42,31 @@ const STEPS: {
   },
   {
     n: 4,
-    label: "상세 1/2",
+    label: "상세 1/3",
     canProceed: (d) => !!d.serviceName?.trim() && !!d.targetSchedule?.trim(),
   },
   {
     n: 5,
-    label: "상세 2/2 · 임팩트",
-    canProceed: (d) => !!d.problemAndImprovement?.trim(),
+    label: "상세 2/3 · 임팩트",
+    // NEW는 문제점/개선점 필드를 숨기므로 자동 통과 (submit 시 placeholder 자동 채움).
+    canProceed: (d) =>
+      d.funcTypeCode === "NEW" || !!d.problemAndImprovement?.trim(),
   },
   // S6은 자유 메모/체크 위주라 진행 차단 없음 — 비워도 제출 가능
-  { n: 6, label: "AI 심층 질의", canProceed: () => true },
+  { n: 6, label: "상세 3/3", canProceed: () => true },
 ];
+
+// S7은 신규 표준결제창-카드일 때만 끼움. 필수값 강제하지 않음(빈 폼이어도 제출 허용 — 정책)
+const INTAKE_STEP: StepMeta = {
+  n: 7,
+  label: "신규 지불수단 폼",
+  canProceed: () => true,
+};
+
+/** 현재 데이터 상태에 따라 위저드가 노출할 step 메타 목록을 반환. */
+function buildSteps(d: WizardData): StepMeta[] {
+  return isIntakeSlideActive(d) ? [...BASE_STEPS, INTAKE_STEP] : BASE_STEPS;
+}
 
 function WizardInner() {
   const { state, next, prev, goto } = useWizard();
@@ -80,15 +95,17 @@ function WizardInner() {
   });
 
   const current = state.currentSlide;
-  const step = STEPS[current - 1];
+  // 데이터에 따라 노출 step 동적 계산 — S7(신규 지불수단 폼) 분기
+  const steps = useMemo(() => buildSteps(state.data), [state.data]);
+  const totalSteps = steps.length;
+  // 사용자가 S7까지 갔다가 S2에서 카드를 풀어 S7이 사라진 경우 step 메타가 없을 수 있음 — 안전한 fallback
+  const step = steps.find((s) => s.n === current) ?? steps[steps.length - 1];
   const canProceed = useMemo(() => step.canProceed(state.data), [step, state.data]);
-  const isLast = current === TOTAL_SLIDES;
+  const isLast = step.n === steps[steps.length - 1].n;
 
   return (
     <div className="px-6 sm:px-10 py-8 max-w-[920px] mx-auto">
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-        <span>대시보드</span>
-        <span>/</span>
         <span className="text-foreground">새 요청서 작성</span>
       </div>
       <h1 className="text-2xl font-semibold text-foreground tracking-tight">
@@ -104,11 +121,11 @@ function WizardInner() {
           <span>
             STEP {current} <span className="text-foreground/70">· {step.label}</span>
           </span>
-          <span>{Math.round((current / TOTAL_SLIDES) * 100)}%</span>
+          <span>{Math.round((current / totalSteps) * 100)}%</span>
         </div>
-        <Progress value={(current / TOTAL_SLIDES) * 100} className="h-2" />
+        <Progress value={(current / totalSteps) * 100} className="h-2" />
         <ol className="mt-3 flex items-center gap-1.5 overflow-x-auto">
-          {STEPS.map((s) => {
+          {steps.map((s) => {
             const done = s.n < current;
             const active = s.n === current;
             return (
@@ -146,6 +163,7 @@ function WizardInner() {
           {current === 4 && <Slide4Details />}
           {current === 5 && <Slide5Impact />}
           {current === 6 && <Slide6AiDeepDive />}
+          {current === 7 && <Slide7PaymentMethodIntake />}
         </div>
       </div>
 

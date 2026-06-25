@@ -24,7 +24,10 @@ export function toBackendPayload(data: WizardData): BackendDevRequest {
     serviceName: data.serviceName ?? "",
     background: data.background ?? "",
     targetSchedule: normalizeDate(data.targetSchedule ?? ""),
-    problemAndImprovement: composeProblemAndImprovement(data),
+    // 백엔드 @NotBlank이라 빈값 못 보냄. NEW에선 S5 필드를 숨겼으므로 placeholder 보충.
+    problemAndImprovement:
+      composeProblemAndImprovement(data) ||
+      (data.funcTypeCode === "NEW" ? "신규 서비스 개발 — 별도 문제점 없음" : ""),
   };
 }
 

@@ -32,7 +32,9 @@ dependencies {
     implementation 'com.google.genai:google-genai:1.58.0'           // Gemini 2.5 Flash
     implementation 'com.github.vlsi.mxgraph:jgraphx:4.2.2'          // mxGraph XML → PNG 렌더러
     implementation 'org.apache.poi:poi-ooxml:5.4.0'                 // (예비) xlsx 출력 — 현재 미사용
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml'  // catalog yaml 파싱
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14'  // Swagger UI
+    implementation 'net.sourceforge.plantuml:plantuml:1.2024.7'                 // PlantUML 텍스트 → SVG/PNG 렌더 (knowledge_base md 본문)
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

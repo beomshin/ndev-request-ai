@@ -50,7 +50,7 @@ fields:
     label: 인증주체
     inputType: select
     required: true
-    options: [PG, PROVIDER]
+    options: [PG, 제휴사/원천사]
     defaultValue: PG
     helpText: 결제 인증을 수행하는 주체를 선택하세요.
     sourceDocId: policy.auth_subject.v1
@@ -60,7 +60,7 @@ fields:
     label: 승인주체
     inputType: select
     required: true
-    options: [PG, PROVIDER]
+    options: [PG, 제휴사/원천사]
     defaultValue: PG
     sourceDocId: policy.approval_subject.v1
 
@@ -69,7 +69,7 @@ fields:
     label: 매입주체
     inputType: select
     required: true
-    options: [PG, PROVIDER, ACQUIRER]
+    options: [PG, 제휴사/원천사, 매입사]
     defaultValue: PG
     sourceDocId: policy.acquiring_subject.v1
 
@@ -78,7 +78,7 @@ fields:
     label: 현금영수증 발행 주체
     inputType: select
     required: true
-    options: [PG, PROVIDER, MERCHANT, NONE]
+    options: [PG, 제휴사/원천사, 가맹점, NONE]
     defaultValue: PG
     sourceDocId: policy.cash_receipt_subject.v1
 
@@ -97,13 +97,13 @@ fields:
     label: 서비스 제공 채널
     inputType: multiselect
     required: true
-    options: [PC_WEB, MOBILE_WEB, APP]
+    options: [PC웹, 모바일웹, APP]
     sourceDocId: policy.service_channel.v1
 
   - policyId: P-107
     section: SERVICE
     label: 통화종류
-    inputType: select
+    inputType: multiselect
     required: true
     options: [KRW, USD, JPY]
     defaultValue: KRW
@@ -154,9 +154,9 @@ fields:
   - policyId: P-301
     section: AUTH
     label: 인증/비인증 여부
-    inputType: select
+    inputType: multiselect
     required: true
-    options: [AUTH, NON_AUTH]
+    options: [인증, 비인증]
     defaultValue: AUTH
     helpText: 본인인증 절차 적용 여부입니다.
     sourceDocId: policy.auth_required.v1
@@ -173,9 +173,9 @@ fields:
   - policyId: P-303
     section: AUTH
     label: 현금영수증 발행 정보
-    inputType: select
+    inputType: multiselect
     required: false
-    options: [NONE, INCOME_DEDUCTION, EXPENSE_PROOF]
+    options: [NONE, 소득공제, 지출증빙]
     defaultValue: NONE
     helpText: "0:미발행 / 소득공제 / 지출증빙"
     sourceDocId: policy.cash_receipt_info.v1
@@ -183,14 +183,14 @@ fields:
   - policyId: P-304
     section: AUTH
     label: 대상 채널 (연동 방식)
-    inputType: select
+    inputType: multiselect
     required: true
-    options: [PC_WEB, MOBILE_WEB]
+    options: [PC, 모바일]
     defaultValue: REDIRECT
     helpText: "SDK 선택 시 'SDK 로드 URL' 입력란이 추가로 표시됩니다."
     sourceDocId: policy.target_channel.v1
 
- - policyId: P-305
+  - policyId: P-305
     section: AUTH
     label: 결제창 노출 제휴사명
     inputType: group
@@ -214,6 +214,12 @@ fields:
         inputType: text
         required: false
         placeholder: 예) Naver支付
+        maxLength: 30
+      - key: ja
+        label: 일문
+        inputType: text
+        required: false
+        placeholder: 예) ネイバーペイ
         maxLength: 30
     sourceDocId: policy.payment_window_display.v1
 
@@ -417,3 +423,10 @@ fields:
     defaultValue: false
     helpText: 빌링키 기반 정기/자동 결제 지원 여부입니다.
     sourceDocId: policy.recurring_payment.v1
+---
+
+# 신규 지불수단 등록 — 작성 가이드 (본문)
+
+이 문서의 front matter(`form_schema`)는 FE 위저드 S7 슬라이드가 동적으로 렌더링하는 폼 스키마입니다.
+필드 추가/수정은 `fields:` 배열을 수정하고, 섹션 추가/수정은 `sections:` 배열을 수정합니다.
+변경 후 별도 코드 수정 없이 백엔드 재기동만으로 반영됩니다.

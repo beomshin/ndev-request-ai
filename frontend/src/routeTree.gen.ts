@@ -14,6 +14,7 @@ import { Route as ListRouteImport } from './routes/list'
 import { Route as KnowledgeRouteImport } from './routes/knowledge'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResultIdRouteImport } from './routes/result_.$id'
+import { Route as KnowledgeIdRouteImport } from './routes/knowledge_.$id'
 
 const NewRoute = NewRouteImport.update({
   id: '/new',
@@ -40,12 +41,18 @@ const ResultIdRoute = ResultIdRouteImport.update({
   path: '/result/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KnowledgeIdRoute = KnowledgeIdRouteImport.update({
+  id: '/knowledge_/$id',
+  path: '/knowledge/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/knowledge': typeof KnowledgeRoute
   '/list': typeof ListRoute
   '/new': typeof NewRoute
+  '/knowledge/$id': typeof KnowledgeIdRoute
   '/result/$id': typeof ResultIdRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/knowledge': typeof KnowledgeRoute
   '/list': typeof ListRoute
   '/new': typeof NewRoute
+  '/knowledge/$id': typeof KnowledgeIdRoute
   '/result/$id': typeof ResultIdRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,28 @@ export interface FileRoutesById {
   '/knowledge': typeof KnowledgeRoute
   '/list': typeof ListRoute
   '/new': typeof NewRoute
+  '/knowledge_/$id': typeof KnowledgeIdRoute
   '/result_/$id': typeof ResultIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/knowledge' | '/list' | '/new' | '/result/$id'
+  fullPaths:
+    | '/'
+    | '/knowledge'
+    | '/list'
+    | '/new'
+    | '/knowledge/$id'
+    | '/result/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/knowledge' | '/list' | '/new' | '/result/$id'
-  id: '__root__' | '/' | '/knowledge' | '/list' | '/new' | '/result_/$id'
+  to: '/' | '/knowledge' | '/list' | '/new' | '/knowledge/$id' | '/result/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/knowledge'
+    | '/list'
+    | '/new'
+    | '/knowledge_/$id'
+    | '/result_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +98,7 @@ export interface RootRouteChildren {
   KnowledgeRoute: typeof KnowledgeRoute
   ListRoute: typeof ListRoute
   NewRoute: typeof NewRoute
+  KnowledgeIdRoute: typeof KnowledgeIdRoute
   ResultIdRoute: typeof ResultIdRoute
 }
 
@@ -116,6 +139,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/knowledge_/$id': {
+      id: '/knowledge_/$id'
+      path: '/knowledge/$id'
+      fullPath: '/knowledge/$id'
+      preLoaderRoute: typeof KnowledgeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -124,6 +154,7 @@ const rootRouteChildren: RootRouteChildren = {
   KnowledgeRoute: KnowledgeRoute,
   ListRoute: ListRoute,
   NewRoute: NewRoute,
+  KnowledgeIdRoute: KnowledgeIdRoute,
   ResultIdRoute: ResultIdRoute,
 }
 export const routeTree = rootRouteImport

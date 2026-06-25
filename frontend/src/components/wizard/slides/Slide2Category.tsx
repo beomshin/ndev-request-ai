@@ -1,22 +1,44 @@
+import { useMemo } from "react";
 import { useCatalog } from "../catalog";
 import { SlideShell } from "../shared/SlideShell";
 import { useWizard } from "../WizardContext";
+import type { SubType } from "../types";
 
-// S2 — 대분류(카테고리) + 세부유형. 둘 다 카탈로그에서 동적으로 가져온다.
-// 기타서비스는 세부유형이 없으므로 subType 단계 자체를 생략한다.
+// S2 — 대분류(카테고리) + 세부유형. 둘 다 카탈로그(yaml)에서 가져온다.
+// funcType이 정해지면 yaml의 available_func_types로 sub_type을 필터링한다
+// (예: API__NEW '신규API생성'은 NEW에서만 노출).
 export function Slide2Category() {
   const { state, patch } = useWizard();
   const { data: catalog, isLoading, isError } = useCatalog();
 
+  const funcTypeCode = state.data.funcTypeCode;
   const categories = catalog?.categories ?? [];
-  const selectedCategory = categories.find((c) => c.label === state.data.category);
+
+  // funcType에 따라 sub_types를 사전 필터링한 카테고리 목록.
+  // available_func_types가 없거나 비어있으면 둘 다 가용으로 본다.
+  const filteredCategories = useMemo(
+    () =>
+      categories.map((c) => ({
+        ...c,
+        subTypes: c.subTypes.filter((s) => isSubTypeAvailable(s, funcTypeCode)),
+      })),
+    [categories, funcTypeCode],
+  );
+
+  const selectedCategory = filteredCategories.find((c) => c.label === state.data.category);
   const hasSubTypes = (selectedCategory?.subTypes.length ?? 0) > 0;
 
   return (
     <SlideShell
       step={2}
       title="어떤 영역의 작업인가요?"
-      description="결제·API·해외결제 같은 큰 분류 → 세부 유형 순으로 골라 주세요."
+      description={
+        funcTypeCode === "NEW"
+          ? "신규 개발에 해당하는 분류·세부유형만 보입니다."
+          : funcTypeCode === "MODIFY"
+            ? "기존 서비스 수정·개선에 해당하는 분류·세부유형만 보입니다."
+            : "결제·API·해외결제 같은 큰 분류 → 세부 유형 순으로 골라 주세요."
+      }
     >
       {isLoading && (
         <p className="text-xs text-muted-foreground">카탈로그를 불러오는 중…</p>
@@ -31,14 +53,13 @@ export function Slide2Category() {
       <div>
         <div className="text-xs font-medium text-foreground mb-2">대분류</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          {categories.map((c) => {
+          {filteredCategories.map((c) => {
             const selected = state.data.category === c.label;
             return (
               <button
                 key={c.code}
                 type="button"
                 onClick={() => {
-                  // 카테고리 바꾸면 이전에 고른 세부유형은 리셋
                   patch({ category: c.label, subType: undefined });
                 }}
                 className={`text-left rounded-lg border p-4 transition ${
@@ -47,9 +68,7 @@ export function Slide2Category() {
                     : "border-border hover:border-primary/40 hover:bg-secondary/60"
                 }`}
               >
-                <div className="text-base mb-1.5">
-                  {iconFor(c.code)}
-                </div>
+                <div className="text-base mb-1.5">{iconFor(c.code)}</div>
                 <div
                   className={`text-sm font-medium ${
                     selected ? "text-primary" : "text-foreground"
@@ -105,15 +124,27 @@ export function Slide2Category() {
   );
 }
 
+// available_func_types가 없거나 비어있으면 둘 다 가용. 명시되면 그 funcType만.
+function isSubTypeAvailable(s: SubType, funcTypeCode?: string): boolean {
+  const aft = s.availableFuncTypes;
+  if (!aft || aft.length === 0) return true;
+  if (!funcTypeCode) return true;
+  return aft.includes(funcTypeCode);
+}
+
 // 시각적 구분만을 위한 임시 아이콘. 실제 의미와 무관 — 카테고리 늘어나면 매핑 추가.
 function iconFor(code: string): string {
   switch (code) {
+    case "PG_STD":
     case "pg_std_pay":
       return "▣";
+    case "API":
     case "api":
       return "⌥";
+    case "GLOBAL":
     case "overseas":
       return "◐";
+    case "ETC_SERVICE":
     case "etc":
       return "⋯";
     default:

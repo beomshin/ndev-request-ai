@@ -3,7 +3,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { useCatalog } from "../catalog";
 import { AdditionalCheck } from "../shared/AdditionalCheck";
 import { EmptyKbNotice } from "../shared/EmptyKbNotice";
 import { FileAttachZone } from "../shared/FileAttachZone";
@@ -22,19 +21,14 @@ import { useWizard } from "../WizardContext";
 export function Slide6AiDeepDive() {
   const { state, patch } = useWizard();
   const d = state.data;
-  const { data: catalog } = useCatalog();
-
-  const isModify = (d.funcType ?? "").includes("수정") || (d.funcType ?? "").includes("개선");
+  // funcType 라벨 매칭 대신 yaml 코드(funcTypeCode)로 안정적으로 분기.
+  const isModify = d.funcTypeCode === "MODIFY";
   const isPgStdPay = (d.category ?? "").includes("pg표준결제창");
-
-  // 카탈로그에서 카드/계좌이체 등 지불수단 후보를 다시 꺼낸다 (S2에서 골랐던 그 트리)
-  const paymentMethods =
-    catalog?.categories.find((c) => c.label === d.category)?.subTypes ?? [];
 
   return (
     <SlideShell
       step={6}
-      title="AI 심층 질의 (마지막)"
+      title="상세 3/3"
       description="앞 단계에서 고른 영역에 맞춰, 정책 확정에 필요한 추가 정보를 모읍니다. 모르거나 확정되지 않은 항목은 옆 체크박스로 [추가 확인]에 담아 두세요."
     >
       {/* 분기 ② — 기존 기능 수정/개선 */}
@@ -138,47 +132,8 @@ export function Slide6AiDeepDive() {
       {/* 분기 ① — 결제창 신규 */}
       {!isModify && isPgStdPay && (
         <section className="space-y-5">
-          {/* (1) 지불수단 노출 */}
-          <div>
-            <div className="text-xs font-semibold text-foreground mb-2">
-              (1) 어떤 지불수단을 노출할까요?
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {paymentMethods.length > 0 ? (
-                paymentMethods.map((m) => {
-                  const selected = d.s6?.paymentMethod === m.label;
-                  return (
-                    <button
-                      key={m.code}
-                      type="button"
-                      onClick={() =>
-                        patch({
-                          s6: {
-                            paymentMethod: m.label,
-                            // 지불수단 바꾸면 하위 옵션 리셋
-                            cardOptions: undefined,
-                          },
-                        })
-                      }
-                      className={`text-xs rounded-full border px-3 py-1.5 transition ${
-                        selected
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-card text-foreground border-border hover:border-primary/40"
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  );
-                })
-              ) : (
-                <EmptyKbNotice message="카탈로그에 등록된 지불수단이 없습니다." />
-              )}
-            </div>
-            <AdditionalCheck slide={6} field="지불수단 노출 범위 확정 여부" />
-          </div>
-
-          {/* (2)~(3) 카드 선택 시 옵션 */}
-          {d.s6?.paymentMethod === "카드" && (
+          {/* (2)~(3) 카드 결제 옵션 — S2에서 카드 subType이 선택된 경우에만 노출 */}
+          {(d.subType?.includes("카드") ?? false) && (
             <div className="space-y-4 rounded-lg border border-border bg-secondary/30 p-4">
               <div className="text-xs font-semibold text-foreground">
                 (2)·(3) 카드 결제 옵션

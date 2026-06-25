@@ -1,17 +1,18 @@
 import { useCatalog } from "../catalog";
 import { SlideShell } from "../shared/SlideShell";
 import { useWizard } from "../WizardContext";
+import type { FuncTypeCode } from "../types";
 
-// S1 — 기능구분(신규/수정). funcType 라벨은 카탈로그에서 가져온다(하드코딩 금지).
-// 카탈로그 실패 시에도 위저드가 막히지 않도록 폴백 옵션을 보여준다.
+// S1 — 기능구분. 카탈로그(yaml)의 func_types를 그대로 노출.
+// 클릭 시 funcType(라벨) + funcTypeCode(NEW/MODIFY) 둘 다 저장 — 슬라이드 분기에 사용.
 export function Slide1FuncType() {
   const { state, patch } = useWizard();
   const { data: catalog, isLoading, isError } = useCatalog();
 
   const options =
     catalog?.funcTypes ?? [
-      { code: "new", label: "신규 서비스 개발" },
-      { code: "modify", label: "기존 서비스 수정·개선" },
+      { code: "NEW", label: "신규 서비스 개발", description: "이전에 없던 새 결제 흐름·기능을 추가합니다." },
+      { code: "MODIFY", label: "기존 서비스 수정·개선", description: "이미 운영 중인 기능을 수정/개선합니다." },
     ];
 
   return (
@@ -31,13 +32,21 @@ export function Slide1FuncType() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {options.map((opt) => {
-          // 라벨을 그대로 백엔드로 보낸다 (백엔드 DTO는 문자열 funcType을 받음)
           const selected = state.data.funcType === opt.label;
+          const isNew = opt.code === "NEW";
           return (
             <button
               key={opt.code}
               type="button"
-              onClick={() => patch({ funcType: opt.label })}
+              onClick={() =>
+                patch({
+                  funcType: opt.label,                    // 라벨은 백엔드 LLM 프롬프트로 전달
+                  funcTypeCode: opt.code as FuncTypeCode, // 코드는 FE 분기 로직에서 사용
+                  // funcType이 바뀌면 카테고리/세부유형은 재선택해야 함 — yaml에 따라 가용 범위가 달라짐
+                  category: undefined,
+                  subType: undefined,
+                })
+              }
               className={`text-left rounded-lg border p-5 transition ${
                 selected
                   ? "border-primary bg-primary/5 ring-1 ring-primary"
@@ -48,7 +57,7 @@ export function Slide1FuncType() {
                 className="text-2xl mb-2 inline-flex h-9 w-9 items-center justify-center rounded-md text-primary-foreground"
                 style={{ background: "var(--gradient-primary)" }}
               >
-                {opt.code === "new" ? "✦" : "↻"}
+                {isNew ? "✦" : "↻"}
               </div>
               <div
                 className={`text-sm font-semibold ${
@@ -58,9 +67,9 @@ export function Slide1FuncType() {
                 {opt.label}
               </div>
               <div className="text-xs text-muted-foreground mt-1 leading-snug">
-                {opt.code === "new"
+                {opt.description || (isNew
                   ? "이전에 없던 새 결제 흐름·기능을 추가합니다."
-                  : "이미 운영 중인 기능을 수정/개선합니다."}
+                  : "이미 운영 중인 기능을 수정/개선합니다.")}
               </div>
             </button>
           );

@@ -5,20 +5,40 @@
 // 백엔드 계약
 // ─────────────────────────────────────────────────────────────────────
 
-// 백엔드 GET /api/catalog/ 응답
+// 백엔드 GET /api/catalog/ 응답.
+// 백엔드는 docs/catalog/catalog_category_tree_v1.yaml 을 ground truth로 사용한다.
 export type CategoryTree = {
   funcTypes: FuncType[];
   categories: CategoryNode[];
 };
 
-export type FuncType = { code: string; label: string };
-export type CategoryNode = { code: string; label: string; subTypes: SubType[] };
-export type SubType = { code: string; label: string };
+export type FuncType = {
+  code: string;          // NEW | MODIFY (yaml의 func_types[].id)
+  label: string;
+  description?: string;
+};
+
+export type CategoryNode = {
+  code: string;
+  label: string;
+  inputMode?: string;    // SELECT | FREE_TEXT
+  subTypes: SubType[];
+};
+
+export type SubType = {
+  code: string;
+  label: string;
+  paymentMethods?: string[];
+  freeText?: boolean;
+  specMatchHints?: string[];
+  // null/[]면 둘 다 가용, 명시되면 그 funcType에서만 노출 — 위저드 S2 분기에 사용
+  availableFuncTypes?: string[];
+};
 
 // 백엔드 POST /api/dev-requests/generate 요청 DTO (DevRequestRequest)
 // design.md §6 / 백엔드 DevRequestRequest와 1:1 매핑.
 export type BackendDevRequest = {
-  funcType: string;
+  funcType: string;                // 라벨 ("기존 서비스 수정·개선" 등) — 백엔드는 라벨로 LLM에 전달
   category: string;
   subType: string;
   author: string;
@@ -28,6 +48,9 @@ export type BackendDevRequest = {
   targetSchedule: string;          // YYYYMMDD or YYYY-MM-DD (백엔드는 문자열로 받음)
   problemAndImprovement: string;
 };
+
+// 위저드 내부 분기에 사용하는 funcType 코드 (yaml의 func_types[].id)
+export type FuncTypeCode = "NEW" | "MODIFY";
 
 // 백엔드 응답 (design.md §6 generate) — 초기안. 현재 백엔드는 zip 또는 아래 ProjectMdResult JSON 둘 중 하나 반환.
 export type GenerateResponse = {
@@ -122,6 +145,9 @@ export type GenerateResult = {
 export type WizardExtraData = {
   createdAt: string;                       // 자동 (YYYY-MM-DD)
 
+  // S1에서 funcType 라벨과 함께 저장하는 코드 — 슬라이드 분기에 사용
+  funcTypeCode?: FuncTypeCode;
+
   // S3 추가 정보
   merchantInfo?: string;                   // 가맹점 정보 (이름/MID 등 자유 텍스트)
   providerInfo?: string;                   // 원천사 정보
@@ -144,6 +170,10 @@ export type WizardExtraData = {
 
   // 파일 첨부 (자리만 — 업로드 미구현, 메타만 보관)
   attachments: AttachmentPlaceholder[];
+
+  // S7 (NEW + 표준결제창 + 카드일 때만) — 신규 지불수단 등록 폼 답변
+  // 키: policyId (P-101, P-201, ...) / 값: 문자열·숫자·boolean·배열·중첩객체
+  paymentMethodIntake?: Record<string, unknown>;
 };
 
 export type S6Answers = {
@@ -199,4 +229,14 @@ export type WizardAction =
   | { type: "ADD_ATTACHMENT"; file: AttachmentPlaceholder }
   | { type: "REMOVE_ATTACHMENT"; name: string };
 
-export const TOTAL_SLIDES = 6;
+// 위저드의 최대 단계. 실제 노출 슬라이드 수는 WizardShell에서 조건부로 계산한다.
+export const TOTAL_SLIDES = 7;
+
+/** S7(신규 지불수단 등록 폼)이 활성화되는 조건. */
+export function isIntakeSlideActive(data: WizardData): boolean {
+  return (
+    data.funcTypeCode === "NEW" &&
+    (data.category ?? "").includes("pg표준결제창") &&
+    (data.subType ?? "").includes("카드")
+  );
+}

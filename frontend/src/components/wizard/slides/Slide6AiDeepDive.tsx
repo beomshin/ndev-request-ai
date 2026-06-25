@@ -1,4 +1,3 @@
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -10,20 +9,15 @@ import { SlideShell } from "../shared/SlideShell";
 import { useWizard } from "../WizardContext";
 
 // S6 — AI 동적 심층 질의.
-// 분기 규칙(프롬프트 요구사항):
-//   ① funcType === '신규' && category === 'pg표준결제창'
-//     → (1) 지불수단 노출(=catalog의 세부유형) (2) 카드 선택 (3) 할부/포인트/프로모션
-//   ② funcType === '기존 서비스 수정·개선'
-//     → AS-IS/TO-BE UI (UI: 노출 문구/요소, API: 요청/응답 필수 항목)
-//   ③ (3)번 이후 세부 정책 질문은 지식저장소 의존 → 데이터 없으면 EmptyKbNotice
-//   ④ 모든 항목에 [잘 모름/추가 확인 필요] 체크박스
-//   ⑤ 연동 규격서 파일 첨부 자리
+// 분기 규칙:
+//   ① 기존 서비스 수정·개선 → AS-IS / TO-BE UI (UI: 노출 문구/요소, API: 요청/응답 필수 항목)
+//   ② 신규 → 분류 무관하게 자유 메모 (세부 정책은 KB 의존이라 EmptyKbNotice 안내)
+//   ③ 모든 항목에 [잘 모름/추가 확인 필요] 체크박스 + 연동 규격서 파일 첨부 자리
 export function Slide6AiDeepDive() {
   const { state, patch } = useWizard();
   const d = state.data;
   // funcType 라벨 매칭 대신 yaml 코드(funcTypeCode)로 안정적으로 분기.
   const isModify = d.funcTypeCode === "MODIFY";
-  const isPgStdPay = (d.category ?? "").includes("pg표준결제창");
 
   return (
     <SlideShell
@@ -129,95 +123,8 @@ export function Slide6AiDeepDive() {
         </section>
       )}
 
-      {/* 분기 ① — 결제창 신규 */}
-      {!isModify && isPgStdPay && (
-        <section className="space-y-5">
-          {/* (2)~(3) 카드 결제 옵션 — S2에서 카드 subType이 선택된 경우에만 노출 */}
-          {(d.subType?.includes("카드") ?? false) && (
-            <div className="space-y-4 rounded-lg border border-border bg-secondary/30 p-4">
-              <div className="text-xs font-semibold text-foreground">
-                (2)·(3) 카드 결제 옵션
-              </div>
-
-              {/* 할부 개월 */}
-              <div>
-                <Label className="text-xs">할부 개월 (복수 선택)</Label>
-                <div className="mt-1.5 flex flex-wrap gap-2">
-                  {["일시불", "2개월", "3개월", "6개월", "12개월"].map((opt) => {
-                    const checked = d.s6?.cardOptions?.installments?.includes(opt) ?? false;
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => {
-                          const prev = d.s6?.cardOptions?.installments ?? [];
-                          const next = checked
-                            ? prev.filter((x) => x !== opt)
-                            : [...prev, opt];
-                          patch({ s6: { cardOptions: { installments: next } } });
-                        }}
-                        className={`text-xs rounded-md border px-2.5 py-1 transition ${
-                          checked
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-card text-foreground border-border hover:border-primary/40"
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-                <AdditionalCheck slide={6} field="할부 정책" />
-              </div>
-
-              {/* 포인트/머니 사용 */}
-              <div>
-                <Label className="text-xs flex items-center gap-2">
-                  <Checkbox
-                    checked={!!d.s6?.cardOptions?.usePoint}
-                    onCheckedChange={(v) =>
-                      patch({ s6: { cardOptions: { usePoint: v === true } } })
-                    }
-                  />
-                  포인트 / 머니 동시 사용 허용
-                </Label>
-                <AdditionalCheck slide={6} field="포인트·머니 사용 정책" />
-              </div>
-
-              {/* 프로모션 쿠폰 */}
-              <div>
-                <Label className="text-xs flex items-center gap-2">
-                  <Checkbox
-                    checked={!!d.s6?.cardOptions?.usePromotion}
-                    onCheckedChange={(v) =>
-                      patch({ s6: { cardOptions: { usePromotion: v === true } } })
-                    }
-                  />
-                  프로모션 쿠폰 / 즉시할인 적용
-                </Label>
-                <AdditionalCheck slide={6} field="프로모션·즉시할인 정책" />
-              </div>
-
-              {/* 그 이후 세부 정책은 KB 데이터 없을 때 placeholder */}
-              <div className="pt-2 border-t border-border/70">
-                <EmptyKbNotice />
-              </div>
-            </div>
-          )}
-
-          {/* 카드가 아닌 지불수단 선택 시 — 해당 수단 정책은 KB 학습 필요 */}
-          {d.s6?.paymentMethod && d.s6.paymentMethod !== "카드" && (
-            <div className="rounded-lg border border-border bg-secondary/30 p-4">
-              <EmptyKbNotice
-                message={`'${d.s6.paymentMethod}' 세부 정책 질문지는 지식저장소 추가 학습 필요`}
-              />
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* 그 외(API, 해외결제, 기타 등) — KB 의존이라 자유 메모만 */}
-      {!isModify && !isPgStdPay && (
+      {/* 신규(NEW) 분기 — 분류에 관계없이 자유 메모만 노출 */}
+      {!isModify && (
         <section className="rounded-lg border border-border bg-secondary/30 p-4 space-y-2">
           <div className="text-xs font-semibold text-foreground">
             추가로 알려주시고 싶은 내용

@@ -5,14 +5,18 @@ import com.mxgraph.util.mxCellRenderer;
 import com.mxgraph.util.mxXmlUtils;
 import com.mxgraph.view.mxGraph;
 import com.nice.qa.exception.DiagramRenderException;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Document;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
+import java.awt.Font;
+import java.awt.GraphicsEnvironment;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 
 /**
  * mxGraph(JGraphX) XML을 PNG 바이트 배열로 렌더링하는 컴포넌트.
@@ -43,6 +47,42 @@ public class MxGraphRenderer {
      * 배율이 높을수록 파일 크기가 커지므로 필요에 따라 조정 가능.
      */
     private static final double SCALE = 2.0;
+
+    /** 리소스 경로에 번들된 한국어 폰트 파일 목록 — 앞에서부터 순서대로 시도한다. */
+    private static final String[] KOREAN_FONT_PATHS = {
+            "/fonts/NotoSansKR-Regular.ttf",
+            "/fonts/NanumGothic.ttf",
+            "/fonts/NanumBarunGothic.ttf"
+    };
+
+    /**
+     * 애플리케이션 시작 시 리소스에 번들된 한국어 폰트를 Java AWT에 등록한다.
+     *
+     * <p>Linux 서버는 한국어 폰트가 기본 설치되지 않아 JGraphX가 한글을
+     * 렌더링할 때 깨짐이 발생한다. 이 메서드는 프로젝트 리소스에 포함된
+     * TTF 폰트를 {@link GraphicsEnvironment}에 등록해 해당 문제를 해결한다.
+     *
+     * <p>등록에 실패해도 애플리케이션 시작은 계속된다(경고 로그만 출력).
+     */
+    @PostConstruct
+    void registerKoreanFont() {
+        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        for (String path : KOREAN_FONT_PATHS) {
+            try (InputStream is = getClass().getResourceAsStream(path)) {
+                if (is == null) {
+                    continue;
+                }
+                Font font = Font.createFont(Font.TRUETYPE_FONT, is);
+                ge.registerFont(font);
+                log.info("[Renderer] 한국어 폰트 등록 완료: {} ({})", font.getName(), path);
+                return;
+            } catch (Exception e) {
+                log.warn("[Renderer] 폰트 등록 실패 ({}): {}", path, e.getMessage());
+            }
+        }
+        log.warn("[Renderer] 번들 한국어 폰트를 찾지 못했습니다 — 서버에서 한글이 깨질 수 있습니다. "
+                + "src/main/resources/fonts/ 에 NotoSansKR-Regular.ttf 를 추가하세요.");
+    }
 
     /**
      * mxGraph XML 문자열을 PNG 이미지 바이트 배열로 변환한다.

@@ -18,6 +18,11 @@ import type {
 // /result/{id} — 저장된 요청서 상세 (flat route, /result_/$id 식별자).
 // 디자인은 lovable 원본의 §1~§4 + 추가확인 + 사이드 그대로.
 // 표준 양식 본문 섹션은 두지 않고, 본문은 [⎘ MD 복사] 버튼으로만 활용한다.
+
+/**
+ * `/result/:id` 라우트 정의.
+ * 저장된 개발요청서 상세 페이지의 메타 정보를 선언하고 `ResultDetail` 컴포넌트를 등록한다.
+ */
 export const Route = createFileRoute("/result_/$id")({
   head: () => ({
     meta: [{ title: "요청서 상세 · Req-Genie" }],
@@ -25,10 +30,16 @@ export const Route = createFileRoute("/result_/$id")({
   component: ResultDetail,
 });
 
+/**
+ * 요청서 상세 페이지 진입 컴포넌트.
+ * URL 파라미터 `id`를 숫자로 변환하여 API를 호출하고,
+ * 로딩/에러/성공 상태를 처리한 뒤 `Loaded`에 데이터를 전달한다.
+ */
 function ResultDetail() {
   const { id } = useParams({ from: "/result_/$id" });
   const numericId = Number(id);
   const { data, isLoading, isError, error } = useRequestDetail(
+    // id가 유효한 정수가 아닌 경우 API 호출을 건너뛴다 (undefined 전달)
     Number.isFinite(numericId) ? numericId : undefined,
   );
 
@@ -54,18 +65,31 @@ function ResultDetail() {
   return <Loaded detail={data} />;
 }
 
-// details JSON 형태 — toSavePayload가 저장한 구조
+/**
+ * 저장 시 `details` JSON 컬럼에 직렬화되는 구조.
+ * `wizard`: 위저드 입력값 전체, `projectMd`: AI가 생성한 마크다운 결과물
+ */
 type ParsedDetails = {
   wizard?: WizardData;
   projectMd?: ProjectMdResult;
 };
 
+/**
+ * 요청서 데이터가 로드된 후 실제 상세 화면을 렌더링하는 컴포넌트.
+ * `details` JSON을 파싱하여 위저드 입력값과 AI 분석 결과를 복원한 뒤 각 섹션에 표시한다.
+ *
+ * @param detail - DB에서 조회한 요청서 전체 상세 데이터
+ */
 function Loaded({ detail }: { detail: DevRequestDetail }) {
   const navigate = useNavigate();
   const deleteReq = useDeleteRequest();
+  /** 마크다운 복사 버튼의 피드백 상태 — 복사 성공 후 1.5초간 "복사됨"을 표시한다. */
   const [copied, setCopied] = useState(false);
 
-  // 저장 시점에 details에 직렬화한 위저드 입력 + ProjectMdResult를 다시 복원
+  /**
+   * 저장 시점에 details에 직렬화한 위저드 입력 + ProjectMdResult를 다시 복원한다.
+   * JSON 파싱에 실패하면 빈 객체를 반환하여 null 참조 에러를 방지한다.
+   */
   const parsed: ParsedDetails = useMemo(() => {
     if (!detail.details) return {};
     try {
@@ -77,24 +101,36 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
 
   const r: ProjectMdResult = parsed.projectMd ?? {};
   const wizard = parsed.wizard;
+  /** 위저드 6단계(S6) 답변 — AS-IS/TO-BE, 카드 옵션 등이 포함된다. */
   const s6: S6Answers | undefined = wizard?.s6;
   const asisTobe: AsIsToBe | undefined = s6?.asisTobe;
   const cardOpts = s6?.cardOptions;
 
+  /** 추가 확인 필요 항목 목록 — 위저드 입력 시 미확정 항목을 별도 배너로 표시한다. */
   const checks: AdditionalCheckItem[] = wizard?.additionalCheckItems ?? [];
+  /** 필수 필드 충족률을 0~100% 범위의 정수로 계산한 완성도 지표. */
   const completeness = computeCompleteness(r);
 
+  /**
+   * 마크다운 전문(combinedMarkdown)을 클립보드에 복사하는 비동기 핸들러.
+   * 클립보드 API 접근이 거부되면 사용자에게 수동 복사를 안내한다.
+   */
   const copyMarkdown = async () => {
     if (!detail.combinedMarkdown) return;
     try {
       await navigator.clipboard.writeText(detail.combinedMarkdown);
       setCopied(true);
+      // 1.5초 후 복사 버튼 레이블을 원래대로 되돌린다
       setTimeout(() => setCopied(false), 1500);
     } catch {
       window.alert("클립보드 접근이 거부되었습니다. 본문을 직접 선택해 복사해 주세요.");
     }
   };
 
+  /**
+   * 요청서를 소프트 삭제하는 핸들러.
+   * 확인 대화상자로 의도치 않은 삭제를 방지하며, 성공 시 목록 페이지로 이동한다.
+   */
   const onDelete = async () => {
     if (!window.confirm("이 요청서를 삭제하시겠습니까? (소프트 삭제 — 복원은 DB 수동)")) return;
     await deleteReq.mutateAsync(detail.id);
@@ -103,17 +139,18 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
 
   return (
     <div className="px-10 py-8 max-w-[1180px] mx-auto">
-      {/* 브레드크럼 */}
+      {/* 브레드크럼 — 현재 요청서의 위치를 표시하고 목록으로 돌아가는 링크를 제공 */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
         <Link to="/list" className="hover:text-foreground">생성 요청서 목록</Link>
         <span>/</span>
         <span className="text-foreground font-mono">#{detail.id}</span>
       </div>
 
-      {/* 헤더 */}
+      {/* 헤더 — 요청서 번호, 상태, 카테고리, 제목, 생성 정보를 표시 */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-2">
+            {/* 6자리 제로 패딩된 요청서 일련번호 (예: RQ-000042) */}
             <span className="text-[11px] font-mono text-muted-foreground">
               RQ-{String(detail.id).padStart(6, "0")}
             </span>
@@ -138,6 +175,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className="flex gap-2">
+            {/* MD 복사 버튼 — combinedMarkdown이 없으면 비활성화 */}
             <button
               onClick={copyMarkdown}
               disabled={!detail.combinedMarkdown}
@@ -158,10 +196,11 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
 
       <div className="grid grid-cols-3 gap-6">
         <article className="col-span-2 rounded-xl border border-border bg-card overflow-hidden">
-          {/* 추가 확인 필요 항목 */}
+          {/* 추가 확인 필요 항목 배너 — 미확정 항목이 있을 때만 표시 */}
           {checks.length > 0 && <UnconfirmedBanner checks={checks} />}
 
           <div className="p-8 prose-sm max-w-none">
+            {/* §1 요청 개요 */}
             <Section n="1" title="요청 개요">
               <Row k="요청 일자" v={r.createdDate ?? formatDateShort(detail.createdAt)} />
               <Row k="목표 일정" v={r.targetDate} />
@@ -169,6 +208,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
               <Row k="서비스명" v={r.productName ?? detail.title} />
             </Section>
 
+            {/* §2 추진 배경 */}
             <Section n="2" title="추진 배경">
               {r.promotionBackground?.trim() ? (
                 <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
@@ -178,6 +218,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
                 <p className="text-sm text-muted-foreground">(추진 배경 정보 없음)</p>
               )}
               {r.issueAndImprovement?.trim() && (
+                // 문제점·개선점은 부수적 정보이므로 details로 접었다 펼 수 있게 처리
                 <details className="mt-3 rounded-md border border-border bg-secondary/30 p-3">
                   <summary className="cursor-pointer text-xs font-medium text-foreground">
                     문제점 · 개선점 (AI 재해석)
@@ -189,8 +230,10 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
               )}
             </Section>
 
+            {/* §3 AS-IS / TO-BE */}
             <Section n="3" title="AS-IS / TO-BE">
               {asisTobe?.kind ? (
+                // AS-IS와 TO-BE를 좌우로 나란히 배치하여 변경 전후를 한눈에 비교
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="rounded-md border border-border p-3">
                     <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
@@ -216,6 +259,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
               )}
             </Section>
 
+            {/* §4 정책 상세 — 값이 있는 항목만 행으로 렌더링 */}
             <Section n="4" title="정책 상세">
               <table className="w-full text-sm">
                 <tbody>
@@ -229,6 +273,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
                     ["부분 취소 / 환불 정책", r.partialCancelAndRefundPolicy],
                     ["현금영수증 발행 주체", r.cashReceiptIssuer],
                   ] as [string, string | undefined][])
+                    // 값이 비어 있는 항목은 행으로 표시하지 않아 테이블을 간결하게 유지
                     .filter(([, v]) => v && v.trim())
                     .map(([k, v]) => (
                       <tr key={k} className="border-b border-border last:border-0">
@@ -240,6 +285,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
               </table>
             </Section>
 
+            {/* §5 개발 범위 · 복잡도 (AI 분석) */}
             <Section n="5" title="개발 범위 · 복잡도 (AI 분석)">
               {(r.developmentScope || r.estimatedComplexity || r.prerequisiteActions || r.riskAndConstraints) ? (
                 <div className="space-y-3 text-sm">
@@ -266,6 +312,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
                     </div>
                   )}
                   {r.riskAndConstraints?.trim() && (
+                    // 리스크는 경고 색상으로 강조하여 빠르게 인식할 수 있도록 처리
                     <div className="rounded-md border border-[color:var(--warning)]/30 bg-[color:var(--warning)]/5 p-3">
                       <div className="text-xs font-semibold text-[color:var(--warning)] mb-1">
                         ⚠ 리스크 / 제약
@@ -281,6 +328,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
               )}
             </Section>
 
+            {/* §6 기대 효과 */}
             <Section n="6" title="기대 효과">
               <div className="grid grid-cols-2 gap-3">
                 <Stat
@@ -301,6 +349,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
               )}
             </Section>
 
+            {/* §7 현업 재확인 필요 항목 — pendingQuestions가 있을 때만 표시 */}
             {(r.pendingQuestions?.length ?? 0) > 0 && (
               <Section n="7" title="현업 재확인 필요 항목 (핑퐁 방지)">
                 <p className="text-xs text-muted-foreground mb-3">
@@ -314,6 +363,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
               </Section>
             )}
 
+            {/* §8 AI 추론 근거 — assumptionList가 있을 때만 표시 */}
             {(r.assumptionList?.length ?? 0) > 0 && (
               <Section n="8" title="AI 추론 근거 (가정 목록)">
                 <p className="text-xs text-muted-foreground mb-3">
@@ -330,13 +380,16 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
               </Section>
             )}
 
+            {/* §9 설계 흐름 다이어그램 — Gemini 호출로 생성되며 DB에 캐시된다 */}
             <Section n="9" title="설계 흐름 다이어그램">
               <FlowDiagram requestId={detail.id} hasCached={!!detail.flowDiagram?.trim()} />
             </Section>
           </div>
         </article>
 
+        {/* 우측 사이드바 */}
         <aside className="space-y-4">
+          {/* 목차 카드 — 조건부 섹션(§7, §8)은 해당 데이터가 있을 때만 목차에 포함 */}
           <div className="rounded-xl border border-border bg-card p-5">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               목차
@@ -361,6 +414,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
             </ol>
           </div>
 
+          {/* AI 검증 요약 카드 */}
           <div className="rounded-xl border border-border bg-card p-5">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               AI 검증 요약
@@ -372,6 +426,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
             </div>
           </div>
 
+          {/* 빠른 이동 카드 */}
           <div className="rounded-xl border border-border bg-card p-5">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               빠른 이동
@@ -392,6 +447,7 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
         </aside>
       </div>
 
+      {/* 삭제 실패 시 하단에 에러 메시지 표시 */}
       {deleteReq.isError && (
         <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           삭제 실패:{" "}
@@ -406,6 +462,12 @@ function Loaded({ detail }: { detail: DevRequestDetail }) {
 // 보조 컴포넌트 (/result.tsx와 동일 — 코드 중복 인정. 분리는 추후 필요 시)
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * 추가 확인 필요 항목을 경고 배너로 표시하는 컴포넌트.
+ * 위저드 입력 시 미확정으로 표시된 항목을 현업 담당자가 확인해야 함을 알린다.
+ *
+ * @param checks - 추가 확인이 필요한 항목 목록
+ */
 function UnconfirmedBanner({ checks }: { checks: AdditionalCheckItem[] }) {
   return (
     <div className="border-b-2 border-[color:var(--warning)]/40 bg-[color:var(--warning)]/5 p-6">
@@ -415,12 +477,14 @@ function UnconfirmedBanner({ checks }: { checks: AdditionalCheckItem[] }) {
       <ul className="space-y-2.5 text-sm text-foreground">
         {checks.map((c, i) => (
           <li key={`${c.slide}-${c.field}-${i}`} className="flex gap-3">
+            {/* 항목 번호를 2자리 제로 패딩으로 표시 */}
             <span className="font-mono text-xs text-[color:var(--warning)] mt-0.5">
               {String(i + 1).padStart(2, "0")}
             </span>
             <div>
               <div className="font-medium">{c.field}</div>
               {c.reason && <div className="text-xs text-muted-foreground mt-0.5">{c.reason}</div>}
+              {/* 해당 항목이 위저드의 몇 번째 슬라이드에서 입력되는지 표시 */}
               <div className="text-[10px] text-muted-foreground/70 mt-0.5">위저드 S{c.slide}</div>
             </div>
           </li>
@@ -430,6 +494,14 @@ function UnconfirmedBanner({ checks }: { checks: AdditionalCheckItem[] }) {
   );
 }
 
+/**
+ * 요청서 본문의 각 섹션 레이아웃 컴포넌트.
+ * 섹션 번호(§N)와 제목을 헤딩으로 표시하고 하위 내용을 감싼다.
+ *
+ * @param n - 섹션 번호 (예: "1", "2")
+ * @param title - 섹션 제목
+ * @param children - 섹션 내부 콘텐츠
+ */
 function Section({ n, title, children }: { n: string; title: string; children: React.ReactNode }) {
   return (
     <section className="mb-7">
@@ -442,6 +514,13 @@ function Section({ n, title, children }: { n: string; title: string; children: R
   );
 }
 
+/**
+ * 레이블-값 쌍을 한 줄로 표시하는 컴포넌트.
+ * 값이 비어 있으면 "—"로 표시하고 색상을 흐리게 처리한다.
+ *
+ * @param k - 레이블 텍스트
+ * @param v - 표시할 값 (null/undefined이면 "—" 처리)
+ */
 function Row({ k, v }: { k: string; v?: string | null }) {
   const empty = !v || !v.trim();
   return (
@@ -454,6 +533,13 @@ function Row({ k, v }: { k: string; v?: string | null }) {
   );
 }
 
+/**
+ * 수치형 통계를 색상 톤에 따라 카드 형태로 표시하는 컴포넌트.
+ *
+ * @param label - 통계 항목 레이블
+ * @param value - 표시할 수치 문자열
+ * @param tone - 색상 톤 ("success": 초록, "warn": 노랑, "muted": 기본)
+ */
 function Stat({ label, value, tone }: { label: string; value: string; tone: "success" | "warn" | "muted" }) {
   const borderBg =
     tone === "success"
@@ -475,6 +561,14 @@ function Stat({ label, value, tone }: { label: string; value: string; tone: "suc
   );
 }
 
+/**
+ * 사이드바 AI 검증 요약 섹션의 개별 지표 항목 컴포넌트.
+ * 레이블과 값을 좌우 정렬로 표시하며, 선택적 색상 톤을 적용한다.
+ *
+ * @param label - 지표 레이블
+ * @param v - 표시할 값 문자열
+ * @param tone - 선택적 색상 톤 ("success" | "warn", 없으면 기본 색상)
+ */
 function Metric({ label, v, tone }: { label: string; v: string; tone?: "success" | "warn" }) {
   const c =
     tone === "success"
@@ -490,6 +584,12 @@ function Metric({ label, v, tone }: { label: string; v: string; tone?: "success"
   );
 }
 
+/**
+ * 요청서 상태를 색상이 있는 뱃지로 표시하는 컴포넌트.
+ * `AI_ANALYZED` 상태는 성공(초록) 색상으로, `DRAFT`는 중립 색상으로 표시한다.
+ *
+ * @param status - 표시할 요청서 상태 코드
+ */
 function StatusBadge({ status }: { status: DevRequestStatus }) {
   const cls =
     status === "AI_ANALYZED"
@@ -504,18 +604,29 @@ function StatusBadge({ status }: { status: DevRequestStatus }) {
 }
 
 /**
- * 설계 흐름 다이어그램 — 백엔드 GET /api/requests/{id}/flow.png를 img src로 직접 호출.
- * - DB에 XML 캐시가 있으면 (hasCached) 자동 로드 (빠름, Gemini 호출 X)
- * - 없으면 [⟳ 다이어그램 생성] 버튼으로 명시적 트리거 (한 번 누르면 DB에 캐시되어 다음부터 자동)
+ * 설계 흐름 다이어그램 컴포넌트.
+ * 백엔드 `GET /api/requests/{id}/flow.png`를 `<img>` src로 직접 호출한다.
+ * - DB에 XML 캐시가 있으면 (`hasCached`) 자동 로드 (빠름, Gemini 호출 없음)
+ * - 캐시가 없으면 [다이어그램 생성] 버튼으로 명시적 트리거 (한 번 누르면 DB에 캐시되어 다음부터 자동)
+ * - 이미지 로드 실패 시 에러 메시지와 재시도 버튼을 표시한다.
+ *
+ * @param requestId - 다이어그램을 조회할 요청서 ID
+ * @param hasCached - DB에 다이어그램 XML 캐시가 존재하는지 여부
  */
 function FlowDiagram({ requestId, hasCached }: { requestId: number; hasCached: boolean }) {
+  /** hasCached가 true이면 즉시 이미지를 로드하도록 trigger 상태를 true로 초기화 */
   const [trigger, setTrigger] = useState(hasCached);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  /** 이미지 URL에 타임스탬프 쿼리 파라미터를 붙여 브라우저 캐시를 무효화한다. */
   const [cacheBust, setCacheBust] = useState(Date.now());
 
   const src = `/api/requests/${requestId}/flow.png?t=${cacheBust}`;
 
+  /**
+   * 다이어그램 생성(또는 재생성)을 트리거하는 핸들러.
+   * cacheBust 값을 갱신하여 새 이미지 URL로 재요청한다.
+   */
   const handleGenerate = () => {
     setBusy(true);
     setErr(null);
@@ -558,10 +669,12 @@ function FlowDiagram({ requestId, hasCached }: { requestId: number; hasCached: b
           alt="설계 흐름 시퀀스 다이어그램"
           className="w-full h-auto"
           onLoad={() => {
+            // 이미지 로드 성공 시 busy 상태를 해제하고 에러를 초기화
             setBusy(false);
             setErr(null);
           }}
           onError={() => {
+            // 이미지 로드 실패 시 에러 메시지를 설정
             setBusy(false);
             setErr("백엔드 응답 실패");
           }}
@@ -578,6 +691,13 @@ function FlowDiagram({ requestId, hasCached }: { requestId: number; hasCached: b
   );
 }
 
+/**
+ * AI 분석 결과의 개발 복잡도를 뱃지로 표시하는 컴포넌트.
+ * LOW / MID / HIGH 세 단계를 각각 초록 / 노랑 / 빨강 색상과 설명 레이블로 표현한다.
+ * 알 수 없는 값은 원본 텍스트를 기본 스타일로 표시한다.
+ *
+ * @param value - 복잡도 값 문자열 ("LOW" | "MID" | "HIGH" 또는 임의 값)
+ */
 function ComplexityBadge({ value }: { value: string }) {
   const v = value.trim().toUpperCase();
   const map: Record<string, { cls: string; label: string }> = {
@@ -585,6 +705,7 @@ function ComplexityBadge({ value }: { value: string }) {
     MID: { cls: "bg-[color:var(--warning)]/15 text-[color:var(--warning)]", label: "🟡 MID — 신규 API 연동 또는 기존 로직 수정" },
     HIGH: { cls: "bg-destructive/15 text-destructive", label: "🔴 HIGH — 원천사 신규 협의/계약, 복수 시스템 영향" },
   };
+  // 매핑에 없는 값은 원본 그대로 표시
   const meta = map[v] ?? { cls: "bg-secondary text-foreground", label: value };
   return (
     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium ${meta.cls}`}>
@@ -597,6 +718,14 @@ function ComplexityBadge({ value }: { value: string }) {
 // 헬퍼
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * 가맹점명(merchantName), MID, 원천사명(providerName)을 조합하여
+ * "원천사명 (가맹점명 · MID)" 형태의 단일 문자열로 반환한다.
+ * 값이 없는 항목은 자동으로 제외된다.
+ *
+ * @param r - AI 분석 결과 객체
+ * @returns 조합된 가맹점/원천사 표시 문자열 또는 undefined
+ */
 function joinMerchantProvider(r: ProjectMdResult): string | undefined {
   const merchant = [r.merchantName, r.mid].filter((x) => x && x.trim()).join(" · ");
   const provider = r.providerName?.trim();
@@ -604,12 +733,25 @@ function joinMerchantProvider(r: ProjectMdResult): string | undefined {
   return provider || merchant || undefined;
 }
 
+/**
+ * boolean 값을 사용자에게 표시할 한국어 레이블로 변환한다.
+ *
+ * @param v - 변환할 boolean 값 (undefined이면 undefined 반환)
+ * @returns "사용 가능" | "사용 불가" | undefined
+ */
 function boolLabel(v: boolean | undefined): string | undefined {
   if (v === true) return "사용 가능";
   if (v === false) return "사용 불가";
   return undefined;
 }
 
+/**
+ * 결제 금액 문자열에서 숫자만 추출하여 한국 통화 형식(원)으로 포맷한다.
+ * 숫자가 없으면 원본 문자열을 그대로 반환한다.
+ *
+ * @param raw - 포맷할 금액 문자열 (예: "1000", "1,000원", "최소 500원")
+ * @returns 포맷된 금액 문자열 (예: "1,000원") 또는 undefined
+ */
 function formatAmount(raw?: string): string | undefined {
   if (!raw) return undefined;
   const digits = raw.replace(/[^0-9]/g, "");
@@ -617,6 +759,13 @@ function formatAmount(raw?: string): string | undefined {
   return `${Number(digits).toLocaleString("ko-KR")}원`;
 }
 
+/**
+ * ISO 8601 형식의 날짜 문자열을 한국어 로케일의 날짜+시간 문자열로 변환한다.
+ * 파싱에 실패하면 원본 문자열을 그대로 반환한다.
+ *
+ * @param iso - ISO 8601 형식의 날짜 문자열
+ * @returns 포맷된 날짜+시간 문자열 (예: "2024. 01. 15. 오전 09:30")
+ */
 function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
@@ -632,6 +781,13 @@ function formatDate(iso: string): string {
   }
 }
 
+/**
+ * ISO 8601 형식의 날짜 문자열을 한국어 날짜(시간 제외) 문자열로 변환한다.
+ * 파싱에 실패하면 원본 문자열을 그대로 반환한다.
+ *
+ * @param iso - ISO 8601 형식의 날짜 문자열
+ * @returns 포맷된 날짜 문자열 (예: "2024. 01. 15.")
+ */
 function formatDateShort(iso: string): string {
   try {
     const d = new Date(iso);
@@ -641,6 +797,13 @@ function formatDateShort(iso: string): string {
   }
 }
 
+/**
+ * `ProjectMdResult`의 주요 필드 충족률을 계산하여 0~100 범위의 정수로 반환한다.
+ * boolean 필드는 값이 있으면 충족으로 간주하고, 문자열 필드는 공백 제거 후 길이가 0보다 크면 충족으로 본다.
+ *
+ * @param r - 완성도를 계산할 AI 분석 결과 객체
+ * @returns 완성도 퍼센트 (0~100 정수)
+ */
 function computeCompleteness(r: ProjectMdResult): number {
   const fields: (string | boolean | null | undefined)[] = [
     r.author, r.createdDate, r.department, r.projectId,

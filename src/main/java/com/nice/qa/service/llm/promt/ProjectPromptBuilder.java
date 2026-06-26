@@ -8,16 +8,44 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
-1 * ProjectMdResult 추출·추론용 프롬프트 조립기.
+ * {@link com.nice.qa.service.llm.dto.ProjectMdResult} 추출·추론용 LLM 프롬프트 조립기.
  *
  * <p>목표: 현업(비IT)이 작성한 추상적·불완전한 개발 요청을 AI가 한 번에 구조화해
  * IT 개발팀이 추가 문의 없이 착수할 수 있는 수준의 요청서로 변환한다.
  * 전형적으로 3~5회 발생하는 현업↔IT 핑퐁을 0~1회로 줄이는 것이 핵심 목표다.
+ *
+ * <p>프롬프트 구성 섹션:
+ * <ol>
+ *   <li>{@link #CONTEXT} — AI 역할 및 목표 정의 (PG 도메인 전문 번역가)</li>
+ *   <li>{@link #PING_PONG_PATTERNS} — 핑퐁이 발생하는 전형적인 패턴 목록</li>
+ *   <li>{@link #PROCEDURE} — 8단계 분석 절차 (의도 파악 → R&amp;R 판정 → 필드 채우기)</li>
+ *   <li>참고 링크 목록 — LLM이 직접 열람해야 할 지식베이스 문서 URL</li>
+ *   <li>개발요청서 입력 — 현업이 작성한 원문 필드</li>
+ *   <li>{@link #ISSUE_RULE} — {@code issueAndImprovement} 필드 4단 작성 규칙</li>
+ *   <li>{@link #COMMON_RULES} — 추론·출력 공통 규칙 (JSON만 출력, 코드펜스 금지 등)</li>
+ *   <li>{@link #OUTPUT_SCHEMA} — 출력 JSON 스키마 정의</li>
+ * </ol>
+ *
+ * <p>LLM 응답은 {@link com.nice.qa.service.llm.dto.ProjectMdResult} 구조에 맞는
+ * 순수 JSON이어야 한다. 코드펜스가 붙은 경우
+ * {@link com.nice.qa.service.llm.LlmResponseParser#stripCodeFence(String)}로 제거한 뒤
+ * Jackson으로 역직렬화한다.
+ *
+ * @see com.nice.qa.service.llm.dto.ProjectMdResult  LLM 응답 역직렬화 대상 DTO
+ * @see com.nice.qa.service.llm.ReferenceLinks        프롬프트에 주입되는 참조 문서 링크 목록
+ * @see com.nice.qa.service.llm.md.StandardMarkdownRenderer  결과 DTO를 마크다운으로 렌더링
  */
 @Component
 public class ProjectPromptBuilder {
 
     // ── 맥락 ─────────────────────────────────────────────────────────────────
+    /**
+     * AI의 역할과 목표를 정의하는 맥락(context) 섹션.
+     *
+     * <p>LLM에게 "PG 도메인 전문 번역가 겸 요구사항 분석가" 역할을 부여한다.
+     * 이 섹션은 LLM이 현업 언어와 기술 명세 사이를 정확히 번역하도록 유도하는
+     * System Prompt 역할을 한다.
+     */
     private static final String CONTEXT = """
             # 역할과 목표
 
@@ -35,6 +63,13 @@ public class ProjectPromptBuilder {
             """;
 
     // ── 핑퐁 패턴 인식 ────────────────────────────────────────────────────────
+    /**
+     * 현업↔IT 핑퐁이 발생하는 전형적인 패턴을 LLM에 인식시키는 섹션.
+     *
+     * <p>가맹점 정보 누락, 서비스 채널 불명확, 원천사 계약 미확인, 정책 미지정 등
+     * 재문의를 유발하는 체크리스트를 제공한다. LLM은 이 패턴을 참고하여
+     * {@code pendingQuestions}를 생성한다.
+     */
     private static final String PING_PONG_PATTERNS = """
             # 핑퐁이 발생하는 전형적인 패턴 (반드시 인식하고 예방할 것)
 
@@ -68,6 +103,14 @@ public class ProjectPromptBuilder {
             """;
 
     // ── 분석 절차 ─────────────────────────────────────────────────────────────
+    /**
+     * LLM이 반드시 따라야 할 8단계 분석 절차.
+     *
+     * <p>Step 1(의도 파악) → Step 2(R&amp;R 판정) → Step 3(정보 분류) →
+     * Step 4(요청 구체화) → Step 5(부수 업무 체크) → Step 6(선행 조건 도출) →
+     * Step 7(핑퐁 방지 질문 생성) → Step 8(IT 명세화) 순서로 수행하도록 지시한다.
+     * Chain-of-Thought 방식으로 단계적 추론을 유도하여 출력 품질을 높인다.
+     */
     private static final String PROCEDURE = """
             # 분석 절차 (반드시 이 순서대로 수행)
 
@@ -116,6 +159,13 @@ public class ProjectPromptBuilder {
             """;
 
     // ── issueAndImprovement 작성 규칙 ────────────────────────────────────────
+    /**
+     * {@code issueAndImprovement} 필드 작성을 위한 4단 구조 규칙.
+     *
+     * <p>현업이 작성한 {@code problemAndImprovement}를 그대로 복사하지 않고,
+     * (1) 핵심 의도 요약 → (2) IT 기술 해석 → (3) 기술 체크포인트 → (4) 근거 표기
+     * 4단으로 재해석하도록 지시한다. 이 필드가 개발자 착수의 핵심 근거가 된다.
+     */
     private static final String ISSUE_RULE = """
             # issueAndImprovement 작성 규칙
 
@@ -143,6 +193,17 @@ public class ProjectPromptBuilder {
             """;
 
     // ── 공통 규칙 ─────────────────────────────────────────────────────────────
+    /**
+     * 추론·출력 전반에 적용되는 공통 규칙 8개.
+     *
+     * <p>주요 규칙:
+     * <ul>
+     *   <li>입력 값은 그대로 반영, {@code problemAndImprovement}는 재해석</li>
+     *   <li>추론 시 참고 문서 → PG 도메인 지식 → 웹 검색 우선순위 적용</li>
+     *   <li>근거가 없으면 빈 문자열/null — 절대 지어내지 않음</li>
+     *   <li>응답은 JSON 하나만, 코드펜스·설명·머리말 금지</li>
+     * </ul>
+     */
     private static final String COMMON_RULES = """
             # 공통 규칙
 
@@ -171,6 +232,15 @@ public class ProjectPromptBuilder {
             """;
 
     // ── 출력 스키마 ───────────────────────────────────────────────────────────
+    /**
+     * LLM이 출력해야 할 JSON 스키마 정의.
+     *
+     * <p>{@link com.nice.qa.service.llm.dto.ProjectMdResult}의 모든 필드에 대응하는
+     * JSON 키·타입·설명을 포함한다. LLM은 이 스키마의 키를 정확히 따라야 하며
+     * 키 추가·삭제·이름 변경은 금지된다.
+     *
+     * <p>이 스키마가 Few-shot 출력 포맷 가이드 역할을 하여 Jackson 역직렬화 성공률을 높인다.
+     */
     private static final String OUTPUT_SCHEMA = """
             # 출력 형식 (JSON 스키마 — 키와 타입을 정확히 따른다)
             {
@@ -226,6 +296,19 @@ public class ProjectPromptBuilder {
             }
             """;
 
+    /**
+     * 현업 개발 요청과 참조 문서 링크를 조합하여 완성된 LLM 프롬프트를 반환한다.
+     *
+     * <p>각 섹션은 {@code \n\n}으로 구분되어 LLM이 섹션 경계를 명확히 인식하도록 한다.
+     * 조립 순서: 역할 맥락 → 핑퐁 패턴 → 분석 절차 → 참고 링크 → 입력 데이터
+     * → issueAndImprovement 규칙 → 공통 규칙 → 출력 스키마.
+     *
+     * @param req   현업이 입력한 개발 요청 원문 DTO
+     *              ({@link com.nice.qa.model.api.dto.DevRequestRequest})
+     * @param links {@link com.nice.qa.service.llm.ReferenceLinks#ALL} 등 참조 문서 URL 목록.
+     *              {@code null} 또는 빈 리스트 허용.
+     * @return Gemini LLM에 전달할 완성된 프롬프트 문자열
+     */
     public String build(DevRequestRequest req, List<String> links) {
         return String.join("\n\n",
                 CONTEXT.strip(),
@@ -238,14 +321,35 @@ public class ProjectPromptBuilder {
                 OUTPUT_SCHEMA.strip());
     }
 
+    /**
+     * 참고 링크 섹션을 생성한다.
+     *
+     * <p>LLM에게 "반드시 직접 열람하여 추론에 활용하라"고 지시하는 URL 목록을 불릿 형식으로 조립한다.
+     * 링크가 없는 경우 "(참고 링크 없음)"으로 명시하여 LLM이 빈 섹션을 인식하도록 한다.
+     *
+     * @param links 참조 문서 URL 목록. {@code null} 또는 빈 리스트 허용.
+     * @return 참고 링크 섹션 문자열
+     */
     private String referenceLinks(List<String> links) {
+        // 링크가 없는 경우에도 섹션 헤더는 유지하고 "없음"으로 명시
         String body = (links == null || links.isEmpty())
                 ? "- (참고 링크 없음)"
                 : links.stream().map(link -> "- " + link).collect(Collectors.joining("\n"));
         return "# 참고 링크 (반드시 직접 열람하여 내용을 추론에 활용할 것)\n" + body;
     }
 
+    /**
+     * 현업 개발 요청 원문을 프롬프트 섹션 형식으로 포맷팅한다.
+     *
+     * <p>각 필드는 LLM이 명확히 구분할 수 있도록 {@code - 필드명(영문키): 값} 형식으로 출력한다.
+     * null 값은 {@link #nz(String)}로 빈 문자열로 처리하여 LLM이 null 문자열을 보지 않도록 한다.
+     *
+     * @param req 현업 입력 DTO
+     * @return 포맷팅된 개발요청서 입력 섹션 문자열
+     */
     private String requestInput(DevRequestRequest req) {
+        // 현업이 입력한 9개 필드를 LLM이 구조화할 원문으로 포맷팅
+        // null 값은 nz()로 빈 문자열 처리 — LLM이 "null" 문자열을 출력하지 않도록 방어
         return """
                 # 개발요청서 입력 (현업 작성 원문 — 아래 내용만으로 개발 착수 가능한 수준으로 구조화하라)
                 - 기능구분(funcType): %s
@@ -263,6 +367,15 @@ public class ProjectPromptBuilder {
                         nz(req.background()), nz(req.targetSchedule()), nz(req.problemAndImprovement()));
     }
 
+    /**
+     * null-safe 문자열 변환 헬퍼 (null → 빈 문자열).
+     *
+     * <p>프롬프트에 "null" 문자열이 그대로 포함되면 LLM이 오동작하거나
+     * 출력 JSON에 "null" 문자열을 값으로 채울 수 있으므로 방어적으로 변환한다.
+     *
+     * @param value 원본 문자열 ({@code null} 허용)
+     * @return {@code null}이면 빈 문자열, 그 외에는 원본 값
+     */
     private static String nz(String value) {
         return Objects.toString(value, "");
     }

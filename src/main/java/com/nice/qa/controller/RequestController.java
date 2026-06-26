@@ -191,8 +191,17 @@ public class RequestController {
             log.debug("[Flow PNG] id={} DB 캐시 사용", id);
         }
 
-        // mxGraph XML을 PNG 바이트 배열로 렌더링한다
-        byte[] png = mxGraphRenderer.toPng(xml);
+        // mxGraph XML을 PNG 바이트 배열로 렌더링한다.
+        // 렌더에 실패하면 같은 XML로 다시 호출해도 같은 실패가 반복되므로(렌더 직전에 DB 저장이 끝난 상태),
+        // 캐시(flow_diagram)를 비워 다음 호출 시 Gemini를 다시 부르게 한다.
+        byte[] png;
+        try {
+            png = mxGraphRenderer.toPng(xml);
+        } catch (RuntimeException e) {
+            log.warn("[Flow PNG] id={} PNG 렌더 실패 — flow_diagram 캐시 무효화", id, e);
+            service.updateFlowDiagram(id, null);
+            throw e;
+        }
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_PNG)
                 // 5분 동안 브라우저 캐시를 허용하여 동일한 이미지를 반복 요청하지 않게 한다
